@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { galleryBrightness } from './Gallery.js';
 import { vec3 } from 'three/tsl';
+import { AleijadinhoStrike } from './AleijadinhoStrike.js';
 
 // ---------------------------------------------------------------------------------------------
 // Aleijadinho trabalhando no andaime: rig próprio (Rigs/Aleijadinho - Rig.blend) + animação do Mixamo.
@@ -51,6 +52,7 @@ export class AleijadinhoWorking {
 		this.root.updateMatrixWorld( true );
 		this.buildTools();
 		this.buildChips( parent ); this.buildWorkHooks();
+			if ( this.opts.target ) this.strike = new AleijadinhoStrike( this ); // mão esquerda crava o ponteiro, a direita bate nele (linha do tempo editável)
 		this.update( 0 );
 		this.debugFromUrl();
 	}
@@ -142,12 +144,14 @@ export class AleijadinhoWorking {
 		// ---- ponteiro (mão esquerda): amarrado a 90° do braço, atravessado na palma, ponta para a frente
 		{
 			const g = new THREE.Group(), axis = geo => geo.rotateX( Math.PI / 2 );   // cilindros com eixo Z (perpendicular ao braço)
+			// medidas reais (m) no referencial do ponteiro: traseira em z = -.09, ponta em z = +.26 (AleijadinhoStrike usa os mesmos números)
 			const handle = part( axis( new THREE.CylinderGeometry( .016 * k, .02 * k, .12 * k, 10 ) ), wood ); handle.position.z = - .03 * k;
+			const cap = part( axis( new THREE.CylinderGeometry( .023 * k, .023 * k, .012 * k, 12 ) ), iron ); cap.position.z = - .096 * k;   // cabeça de ferro: onde a marreta bate
 			const ferrule = part( axis( new THREE.CylinderGeometry( .021 * k, .021 * k, .018 * k, 10 ) ), iron ); ferrule.position.z = .04 * k;
 			const shaft = part( axis( new THREE.CylinderGeometry( .01 * k, .007 * k, .2 * k, 8 ) ), iron ); shaft.position.z = .15 * k;
 			const tip = part( new THREE.BoxGeometry( .02 * k, .004 * k, .02 * k ), iron ); tip.position.z = .26 * k;
 			const lash = part( axis( new THREE.CylinderGeometry( .024 * k, .024 * k, .045 * k, 10 ) ), leather ); lash.position.z = - .02 * k;
-			g.add( handle, ferrule, shaft, tip, lash );
+			g.add( handle, cap, ferrule, shaft, tip, lash );
 			this.lash( 'LeftHand', g, T.chiselPos ?? [ 0, .12, 0 ], T.chiselRot ?? [ 0, 0, 0 ] ); this.chisel = g;
 			if ( ! T.chiselRot ) { // ponta (+Z do grupo) para trás do personagem na T-pose
 				const bone = this.bones.LeftHand, qb = bone.getWorldQuaternion( new THREE.Quaternion() ), back = new THREE.Vector3( 0, 0, - 1 ).applyQuaternion( this.holder.getWorldQuaternion( new THREE.Quaternion() ) ).applyQuaternion( qb.invert() );
@@ -156,18 +160,21 @@ export class AleijadinhoWorking {
 	}	update( dt ) {
 		if ( this.rigEditor?.editing && ! this.rigEditor.preview ) return;
 		this.rigEditor?.restorePoseOffsets();
-		if ( this.rest ) { for ( const [ n, p, q, s ] of this.restPose ) { n.position.copy( p ); n.quaternion.copy( q ); n.scale.copy( s ); } return; }
-		this.autoHitTime();
+		this.rigCalibration?.restoreFrame();
+		if ( this.rest ) { for ( const [ n, p, q, s ] of this.restPose ) { n.position.copy( p ); n.quaternion.copy( q ); n.scale.copy( s ); } this.rigCalibration?.apply(); return; }
+		const st = this.strike?.enabled ? this.strike : null; if ( ! st ) this.autoHitTime();
 		if ( this.playing ) {
 			const prev = this.time; this.time = ( this.time + Math.min( dt, .1 ) * this.opts.speed ) % this.clip.duration;
-			if ( dt > 0 && this.chips?.length && ( prev < this.hitTime && this.time >= this.hitTime ) ) this.burst();
+			if ( dt > 0 && this.chips?.length && ( st ? st.crossed( prev, this.time ) : ( prev < this.hitTime && this.time >= this.hitTime ) ) ) this.burst();
 			this.stepChips?.( Math.min( dt, .1 ) );
 		}
 		this.mixer.setTime( this.time );
 		this.rigEditor?.applyCalibration();
+		this.rigCalibration?.apply();
+		st?.apply( this.time );
 	}
 	seek( seconds ) { this.time = ( ( seconds % this.clip.duration ) + this.clip.duration ) % this.clip.duration; this.update( 0 ); }
-	getStats() { return { clip: this.clip.name, duration: this.clip.duration, time: this.time, playing: this.playing, bones: Object.keys( this.bones ).length }; }
+	getStats() { return { clip: this.clip.name, duration: this.clip.duration, time: this.time, playing: this.playing, rigCalibration: this.rigCalibration?.status, bones: Object.keys( this.bones ).length }; }
 }
 
 

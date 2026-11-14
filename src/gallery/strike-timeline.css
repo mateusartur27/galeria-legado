@@ -1,0 +1,22 @@
+#golpe-panel[hidden]{display:none}
+#golpe-panel{position:fixed;z-index:55;left:50%;bottom:14px;transform:translateX(-50%);width:min(940px,calc(100vw - 20px));max-height:56dvh;overflow:auto;padding:12px 16px 10px;border:1px solid #cfb67b55;border-radius:14px;background:#20262df2;box-shadow:0 14px 44px #0006;font:12px/1.45 system-ui;color:#efeadf}
+#golpe-panel header{display:flex;gap:14px;align-items:center;margin-bottom:8px}#golpe-panel header b{font-size:10px;letter-spacing:1.6px;color:#ccba95;flex:1}
+#golpe-panel button,#golpe-panel select{font:inherit;color:inherit;border:1px solid #afbdc233;background:#313d47;border-radius:7px;padding:6px 10px;cursor:pointer}#golpe-panel button:hover{background:#46535e}
+#golpe-panel [data-close]{font-size:20px;padding:0 6px;background:none;border:0}
+#golpe-panel input[type=range]{width:100%;accent-color:#e4c68b}
+#golpe-panel .g-row{display:flex;gap:8px;align-items:center}#golpe-panel .g-ico{width:38px;font-size:14px}#golpe-panel output{font:11px monospace;color:#bcd0da;min-width:96px;text-align:right}
+#golpe-panel .g-chk{display:inline-flex;gap:6px;align-items:center;color:#d3d9dd}
+#golpe-panel .g-track{position:relative;height:34px;margin:8px 4px 6px;border-radius:8px;background:linear-gradient(#2c363f,#252d35);border:1px solid #afbdc222;cursor:pointer}
+#golpe-panel .g-head{position:absolute;top:-3px;bottom:-3px;width:2px;background:#8ce0d4;box-shadow:0 0 8px #8ce0d4;pointer-events:none;transform:translateX(-1px)}
+#golpe-panel .g-key{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;padding:0!important;border-radius:50%!important;background:#e4c68b!important;border:2px solid #1d242b!important;color:#2b2113;font-size:10px;line-height:12px}
+#golpe-panel .g-key.hit{background:#ff9a3c!important}#golpe-panel .g-key.on{box-shadow:0 0 0 3px #ffffff88}
+#golpe-panel .g-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 16px;margin:8px 0}
+#golpe-panel .g-f{display:block}#golpe-panel .g-f span{display:flex;justify-content:space-between;font-size:11px;color:#c9d1d5}#golpe-panel .g-f output{min-width:0;color:#f0d295}
+#golpe-panel .g-sel{display:flex;flex-direction:column;gap:5px;justify-content:flex-end}
+#golpe-panel .g-btns{flex-wrap:wrap;margin-top:6px}#golpe-panel .g-save{background:#e4c68b;color:#282b2f;font-weight:700;border-color:#e4c68b;margin-left:auto}
+#golpe-panel .g-status,#golpe-panel .g-reach{margin:6px 0 0;font-size:11px;color:#d9c69f;min-height:15px}#golpe-panel .g-reach{color:#9fb4c2;margin-top:2px}
+#golpe-panel [data-min]{font-size:16px;padding:0 6px;background:none;border:0}
+#golpe-panel.min .g-grid,#golpe-panel.min .g-btns,#golpe-panel.min .g-status{display:none}
+#golpe-panel.min .g-reach{margin-top:4px}
+#golpe-toggle{font:inherit}
+@media(max-width:700px){#golpe-panel{bottom:6px;max-height:50dvh;padding:9px 11px}#golpe-panel header{gap:8px;flex-wrap:wrap}}
