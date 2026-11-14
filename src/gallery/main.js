@@ -65,6 +65,8 @@ async function main(){
  });
  // Corredor residente: só as baias que cabem na névoa (antes 19 = 228 m, ~1,3 M de triângulos desenhados sem ninguém ver).
  const gallery=new Gallery(scene,materials,{count:low?7:9});
+ // Sem sombras projetadas pelo corredor (manchas diagonais nas paredes/colunas); só a sala e o personagem projetam sombra.
+ const stripShadows=()=>scene.children.forEach(o=>{if(/^(gallery|asset)-/.test(o.name))o.castShadow=false;});stripShadows();
  // Sets de personagens: ?people=N (quantas pessoas), ?side=left|right (lado da 1ª), ?set=machado (abre parado diante do set).
  const people=Math.max(1,Math.min(12,Number(params.get('people'))||1));
  const startSide=params.get('side')==='right'?1:-1;
@@ -76,9 +78,9 @@ async function main(){
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
  state.camX=-.3;state.eye=2.15;
  if(parked){Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10});sun.shadow.camera.updateProjectionMatrix();}
- if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||1.5);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
+ if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||2.8);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
  gallery.update(state.distance);
- const pipeline=new Pipeline(renderer,scene,camera,style,{aa:'fxaa',bloomMips:3});
+ const pipeline=new Pipeline(renderer,scene,camera,style,{aa:'fxaa',msaa:4,bloomMips:3}); // msaa 4×: bordas limpas nos personagens (o FXAA sozinho serrilhava e borrava)
  progress(62,'Preparando o percurso…');
  // Bounded dust field, deliberately sparse and only bright in the upper gallery.
  const dustGeometry=new THREE.BufferGeometry(),dust=new Float32Array(90*3);for(let i=0;i<90;i++){dust[i*3]=(Math.random()-.5)*9;dust[i*3+1]=.5+Math.random()*5.3;dust[i*3+2]=-Math.random()*65;}
@@ -162,8 +164,8 @@ async function main(){
  const timber=new TimberRoof(gallery);gallery.timber=timber;
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
  // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
- const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]);
- try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const editor=new AleijadinhoRigEditor(aleijadinho.animation,window.__game);window.__game.rigEditor=editor;await editor.load();if(params.has('rig'))editor.open();}engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
+ const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(stripShadows);
+ try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const editor=new AleijadinhoRigEditor(aleijadinho.animation,window.__game);window.__game.rigEditor=editor;await editor.load();if(params.has('rig'))editor.open();const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}}engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }
 main().catch(error=>{console.error(error);progress(100,'Não foi possível iniciar a galeria. Recarregue a página.');$('load-label').style.maxWidth='300px';$('load-label').style.textAlign='center';});

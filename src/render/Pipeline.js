@@ -27,19 +27,20 @@ export class Pipeline {
 		this.pipeline = new THREE.RenderPipeline( renderer )
 		this.pipeline.outputColorTransform = false // controlamos a ordem com renderOutput()
 
-		const scenePass = pass( scene, camera )
+		const msaa = !! quality.msaa && ! style.outline?.enabled && ! style.ao // MSAA de verdade (sem MRT de normais): galeria sem contorno/AO
+		const scenePass = pass( scene, camera, msaa ? { samples: quality.msaa } : undefined )
 		const useIds = !! style.outline?.ids // ID de superfície (Messenger): material grava em `id`, padrão 0 = sem ID
-		scenePass.setMRT( mrt( {
+		if ( ! msaa ) scenePass.setMRT( mrt( {
 			output,
 			normal: vec4( packNormalToRGB( normalView ), float( 1 ) ), // alfa = máscara de tinta (material.mrtNode pode mudar)
 			...( useIds ? { id: vec4( 0, 0, 0, 1 ) } : {} )
 		} ) )
-		scenePass.getTexture( 'normal' ).type = THREE.UnsignedByteType // economiza banda
+		if ( ! msaa ) scenePass.getTexture( 'normal' ).type = THREE.UnsignedByteType // economiza banda
 		if ( useIds ) scenePass.getTexture( 'id' ).type = THREE.HalfFloatType
 		this.scenePass = scenePass
 
 		const colorTex = scenePass.getTextureNode( 'output' )
-		const normalTex = scenePass.getTextureNode( 'normal' )
+		const normalTex = msaa ? null : scenePass.getTextureNode( 'normal' )
 		const depthTex = scenePass.getTextureNode( 'depth' )
 		const idTex = useIds ? scenePass.getTextureNode( 'id' ) : null
 
@@ -281,7 +282,7 @@ export class Pipeline {
 		} )()
 
 		// ---------- Anti-aliasing em pós (MSAA não combina com MRT barato)
-		const aaNode = quality.aa === 'smaa' ? smaa( finalNode ) : fxaa( finalNode )
+		const aaNode = msaa ? finalNode : quality.aa === 'smaa' ? smaa( finalNode ) : fxaa( finalNode )
 		this.pipeline.outputNode = aaNode
 
 	}
