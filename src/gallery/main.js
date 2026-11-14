@@ -83,7 +83,9 @@ async function main(){
  gallery.update(state.distance);
  const pipeline=new Pipeline(renderer,scene,camera,style,{aa:'fxaa',msaa:4,bloomMips:3}); // msaa 4×: bordas limpas nos personagens (o FXAA sozinho serrilhava e borrava)
  // Escada de qualidade: aparelho lento desliga efeitos ANTES de baixar a resolução (que é o que deixa pixelado). 1 = sem MSAA (FXAA); 2 = sem sombra do sol nem luzes extras do corredor.
- engine.settings.degrade=level=>{if(level>=1)pipeline.disableMsaa();if(level>=2){sun.castShadow=false;chandelierLights.forEach(l=>{l.visible=false;});setLights.forEach(l=>{l.visible=false;});}console.info('qualidade nível',level);};
+ engine.settings.degrade=level=>{if(level>=1)pipeline.disableMsaa();if(level>=2){sun.castShadow=false;renderer.shadowMap.enabled=false;chandelierLights.forEach(l=>{l.visible=false;});setLights.forEach(l=>{l.visible=false;});}console.info('qualidade nível',level);};
+ // Celular já abre no nível 2 (sem sombras, sem MSAA, sem luzes extras): medido num aparelho real, nível 0 = 20 fps e nível 2 = 56 fps.
+ if(low){engine.level=2;engine.settings.degrade(2);}
  // ?stats: contador na tela (motor, fps, resolução, nível) para diagnosticar no celular.
  if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
  progress(62,'Preparando o percurso…');
@@ -169,7 +171,8 @@ async function main(){
  const timber=new TimberRoof(gallery);gallery.timber=timber;
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
  // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
- const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(stripShadows);
+ // No celular parado num set, a decoração do corredor (lustres, vasos, estátuas, vigas: ~300 mil triângulos) nem é carregada.
+ const decor=()=>low&&parked?Promise.resolve():Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(stripShadows);
  try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}}const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }
