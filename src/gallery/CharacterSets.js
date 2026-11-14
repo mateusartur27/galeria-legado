@@ -7,6 +7,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, float } from 'three/tsl';
 import { MachadoWriting } from './MachadoWriting.js';
 import { AleijadinhoWorking } from './AleijadinhoWorking.js';
+import { SavedRigCalibration } from './SavedRigCalibration.js';
 import { buildStudyRoom } from './PeriodRoom.js';
 import { buildAleijadinhoRoom } from './AleijadinhoRoom.js';
 import { buildReboucasRoom } from './ReboucasRoom.js';
@@ -141,6 +142,7 @@ const REBOUCAS = {
 	model: null, height: 1.5, stand: { x: 0.45, z: 0.55 }, facing: 0.0, room: buildReboucasRoom, lightScale: .12, openBack: true, maxX: 44,
 }
 // Escurecimento da pele de cada personagem (a pele vem pintada na textura; o shader escurece só os pixels de pele, mantendo detalhe).
+export const HAIR = { from: .66, blur: 2.6, tone: 1 } // cabelo do Machado: a partir de que altura da cabeça (0–1), quanto borrar a textura (mip), ganho de cor
 export const SKIN = { machado: .52, aleijadinho: .78 } // 1 = sem mudança
 export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS ]
 
@@ -173,30 +175,34 @@ export class CharacterSets {
 			e.room = await ( def.room ?? buildStudyRoom )( e.group, { galleryBrightness } )
 			// personagem
 			try {
-				if ( def.model ) { const gltf = await loader.loadAsync( def.model ); this.placeCharacter( e, gltf ) }
+				if ( def.model ) { const gltf = await loader.loadAsync( def.model ); this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();} }
 			} catch ( err ) { throw new Error(`Personagem ${def.id}: ${err.message}`) }
 			e.ready = true
 		}
 	}
-	material( src, id = null, meshName = '' ) {
+	material( src, id = null, meshName = '', geom = null ) {
 		if ( this.characterMaterials.has( src ) ) return this.characterMaterials.get( src )
 		const vc = !! src.vertexColors, m = new THREE.MeshStandardNodeMaterial( { color: src.color.clone(), map: src.map, normalMap: src.normalMap, normalScale: new THREE.Vector2( .5, .5 ), roughness: Math.max( .55, src.roughness ?? .8 ), metalness: 0, side: src.side, vertexColors: vc } )
 		const d = SKIN[ id ] // 1 = pele como veio no modelo; menor = mais escura
 		if ( m.map ) {
 			let c = texture( m.map ).rgb // vertexColors = tom de pele (Aleijadinho)
+			if ( id === 'machado' && geom && /cabe/i.test( meshName ) ) { // cabelo: amostra a textura numa mip mais borrada (some o ruído/blocos da compressão) e deixa os cachos da malha darem o detalhe
+					geom.computeBoundingBox(); const b = geom.boundingBox, hy = ( positionGeometry.y.sub( b.min.y ) ).div( b.max.y - b.min.y ), hair = smoothstep( HAIR.from, HAIR.from + .1, hy )
+					c = mix( c, texture( m.map ).bias( HAIR.blur ).rgb.mul( HAIR.tone ), hair )
+				}
 			let vcMask = float( 1 ); if ( vc ) { const v = vertexColor().rgb; vcMask = smoothstep( .03, .12, v.max( v.zxy ).max( v.yzx ).sub( v.min( v.zxy ).min( v.yzx ) ) ); c = c.mul( v ); m.vertexColors = false } // no Aleijadinho a cor de vértice marca a pele
 			if ( d != null && d < 1 ) { // pele = pixels avermelhados; na cabeça vale a malha toda, no corpo só as mãos (pontas dos braços do modelo)
 				const skin = vc ? vcMask : smoothstep( .05, .15, c.r.sub( c.b ) ).mul( smoothstep( 0, .05, c.r.sub( c.g ) ) )
 				const region = /cabe/i.test( meshName ) || id === 'aleijadinho' ? float( 1 ) : smoothstep( .76, .84, positionGeometry.x.abs() )
 				const lum = dot( c, vec3( .299, .587, .114 ) ); c = mix( c, vec3( 1, .58, .36 ).mul( lum ).mul( d * 1.6 ), skin.mul( region ) ) // troca a cor da pele por marrom (mesma luminosidade x d), mantendo o detalhe
 			}
-			m.colorNode = c; m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
+				m.colorNode = c; m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
 		}		applyReceivedLighting( m ); this.characterMaterials.set( src, m ); return m
 	}
 	placeCharacter( e, gltf ) {
 		const def = e.character, root = gltf.scene
 		if (def.id === 'machado') {
-			root.traverse(n => {if(n.isMesh){n.material=this.material(n.material,'machado',n.name);n.castShadow=true;n.receiveShadow=true;n.frustumCulled=false;}})
+			root.traverse(n => {if(n.isMesh){n.material=this.material(n.material,'machado',n.name,n.geometry);n.castShadow=true;n.receiveShadow=true;n.frustumCulled=false;}})
 			e.animation = new MachadoWriting(e, gltf);
 			this.dimensions[def.id] = {height:1.72, animated:true};
 			return;
