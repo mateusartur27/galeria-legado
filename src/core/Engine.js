@@ -34,7 +34,7 @@ export class Engine {
 		const style = settings.style
 
 		const renderer = new THREE.WebGPURenderer( {
-			antialias: false, // AA em pós (FXAA/SMAA)
+			antialias: settings.antialias ?? false, // AA em pós (FXAA/SMAA); settings.antialias = MSAA direto no canvas (modo rápido)
 			powerPreference: 'high-performance',
 			forceWebGL: settings.forceWebGL
 		} )

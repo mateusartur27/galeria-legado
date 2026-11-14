@@ -33,7 +33,7 @@ function notice(text,ms=2200){$('notice').textContent=text;$('notice').classList
 async function main(){
  progress(8,'Acendendo as luzes…');
  const style={toneMapping:'aces',exposure:1.1,shadows:{type:'pcf'},outline:{enabled:false},ao:null,bloom:low?null:{strength:.16,radius:.45,threshold:1.35},vignette:.3,grain:false,grade:{saturation:1.08,contrast:1.07,shadows:'#2a3358',highlights:'#fff0d6',split:.14}};
- const engine=await new Engine({style,quality:{maxDpr:low?2:1.6,minDpr:low?1.25:.75,levels:2},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
+ const engine=await new Engine({style,antialias:params.has('fast'),quality:{maxDpr:low?2:1.6,minDpr:low?1.25:.75,levels:2},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
  // Shader upload during loading must not be mistaken for steady-state GPU load.
  engine.adaptive=false;
  const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color('#0d1530'); // = cor da névoa: a abertura do fim do corredor some na sombra em vez de ficar azul claro
@@ -84,7 +84,8 @@ async function main(){
  if(parked){Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10});sun.shadow.camera.updateProjectionMatrix();}
  if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||2.8);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
  gallery.update(state.distance);
- const pipeline=new Pipeline(renderer,scene,camera,style,{aa:'fxaa',msaa:4,bloomMips:3}); // msaa 4×: bordas limpas nos personagens (o FXAA sozinho serrilhava e borrava)
+ const fast=params.has('fast'); // ?fast: sem pós-processamento (sem passes em tela cheia/HDR); MSAA direto no canvas
+ const pipeline=fast?{render:()=>renderer.render(scene,camera),disableMsaa(){}}:new Pipeline(renderer,scene,camera,style,{aa:'fxaa',msaa:4,bloomMips:3}); // msaa 4×: bordas limpas nos personagens (o FXAA sozinho serrilhava e borrava)
  // Escada de qualidade: aparelho lento desliga efeitos ANTES de baixar a resolução (que é o que deixa pixelado). 1 = sem MSAA (FXAA); 2 = sem sombra do sol nem luzes extras do corredor.
  engine.settings.degrade=level=>{if(level>=1)pipeline.disableMsaa();if(level>=2){sun.castShadow=false;renderer.shadowMap.enabled=false;chandelierLights.forEach(l=>{l.visible=false;});setLights.forEach(l=>{l.visible=false;});}console.info('qualidade nível',level);};
  // Celular já abre no nível 2 (sem sombras, sem MSAA, sem luzes extras): medido num aparelho real, nível 0 = 20 fps e nível 2 = 56 fps.
