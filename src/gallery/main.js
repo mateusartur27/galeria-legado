@@ -72,11 +72,13 @@ async function main(){
  // Sem sombras projetadas pelo corredor (manchas diagonais nas paredes/colunas); só a sala e o personagem projetam sombra.
  const stripShadows=()=>scene.children.forEach(o=>{if(/^(gallery|asset)-/.test(o.name))o.castShadow=false;});stripShadows();
  // Sets de personagens: ?people=N (quantas pessoas), ?side=left|right (lado da 1ª), ?set=machado (abre parado diante do set).
- const people=Math.max(1,Math.min(12,Number(params.get('people'))||1));
+ // Passeio automático (padrão do site publicado, ou ?tour): a câmera anda sozinha, vira para cada nicho, para um instante e segue; as salas formam um anel que se repete.
+ const tourMode=!params.has('set')&&!params.has('rig')&&(import.meta.env.PROD||params.has('tour'));
+ const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?5:8):1)));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
- const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):(import.meta.env.PROD&&!params.has('tour')?'machado':null);
- const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam});gallery.sets=sets;
+ const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):null;
+ const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado']:null,loop:tourMode});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
@@ -105,9 +107,22 @@ async function main(){
  // Colisão simples: nas alas só se entra pelos portais dos nichos que têm set; dentro do nicho, limite pela parede do fundo.
  const maxX=Math.max(6.3,...sets.entries.map(e=>e.character.maxX??6.3));const nicheOpen=(x,dist)=>{if(Math.abs(x)<4.2)return true;for(const e of sets.entries){if(Math.sign(x)!==e.side)continue;const z=dist-e.logical*BAY_LENGTH+(e.side===1?-BAY_LENGTH/2:0);if(Math.abs(z)<2.3&&Math.abs(x)<(e.room?.walkMaxX?e.room.walkMaxX():(e.character.maxX??6.3)))return true;}return false;};
  const moveBy=(dx,dz)=>{const nx=state.camX+dx,nd=Math.max(0,state.distance-dz);if(nicheOpen(nx,state.distance))state.camX=THREE.MathUtils.clamp(nx,-maxX,maxX);if(nicheOpen(state.camX,nd))state.distance=nd;};
+ // Roteiro do passeio: cruza o corredor; perto de um nicho desacelera, vira a cabeça para ele, se aproxima, fica ~4 s olhando e segue; o próximo nicho (do outro lado) repete.
+ const tour={dwell:0,focus:0,done:new Set()};
+ const tourStep=dt=>{
+  let best=null,bz=1e9;for(const e of sets.entries){if(e.worldZ===undefined||!e.ready)continue;const a=Math.abs(e.worldZ);if(a<bz){bz=a;best=e;}}
+  const ss=THREE.MathUtils.smoothstep;let v=1.5,focus=0;
+  if(best&&bz<9){focus=1-ss(bz,3.5,9);v=1.5*(.2+.8*ss(bz,.8,5));if(bz<1.2&&!tour.done.has(best.logical)){tour.dwell+=dt;v=0;if(tour.dwell>4){tour.done.add(best.logical);tour.dwell=0;}}}
+  state.distance+=dt*v*state.speed;
+  const k=1-Math.exp(-dt*2.5);tour.focus+=(focus-tour.focus)*k;
+  const side=best?best.side:0;
+  state.targetYaw=-side*Math.PI/2*tour.focus;state.targetPitch=-.04*tour.focus;
+  state.camX+=((-.3)+(side*2.8+.3)*tour.focus-state.camX)*(1-Math.exp(-dt*2));
+  state.eye+=((2.15-.45*tour.focus)-state.eye)*(1-Math.exp(-dt*2));
+ };
  engine.setLoop((dt,t)=>{
   if(document.hidden)return;
-  if(!state.paused&&!state.rigEditing)state.distance+=dt*(state.exploring ? .95 : .42)*state.speed;
+  if(tourMode&&!state.exploring&&!state.paused)tourStep(dt);else if(!state.paused&&!state.rigEditing)state.distance+=dt*(state.exploring ? .95 : .42)*state.speed;
   // Caminhada livre (W/S frente-trás, A/D laterais, Shift corre): usa a câmera dentro da galeria sem retomar o passeio automático.
   const walkDir=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),strafe=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
   if(!state.rigEditing&&(walkDir||strafe)){const v=(keys.has('ShiftLeft')?4:1.9)*dt,c=Math.cos(state.yaw),s=Math.sin(state.yaw);
@@ -130,7 +145,7 @@ async function main(){
   if(window.__camOverride){const o=window.__camOverride;camera.position.set(...o.pos);camera.lookAt(...o.at);if(o.fov&&camera.fov!==o.fov){camera.fov=o.fov;camera.updateProjectionMatrix();}} // depuração: câmera livre
   dustCloud.position.z=(state.distance%BAY_LENGTH);if(!reduced)dustCloud.position.y=Math.sin(t*.12)*.06;
   window.__game?.rigEditor?.updateOverlay();
-  culler.apply(camera);pipeline.render();
+  sets.cull(camera);culler.apply(camera);pipeline.render();
   if(t-lastUi>.4){$('distance').textContent=`${Math.floor(state.distance).toString().padStart(3,'0')} m`;lastUi=t;}
  });
  const togglePause=()=>{state.paused=!state.paused;$('pause-icon').textContent=state.paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',state.paused?'Continuar percurso':'Pausar percurso');notice(state.paused?'Percurso pausado':'Seguindo em frente');};

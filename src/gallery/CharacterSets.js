@@ -2,12 +2,14 @@ import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { ktx2Loader } from './Ktx.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, float } from 'three/tsl';
 import { MachadoWriting } from './MachadoWriting.js';
 import { AleijadinhoWorking } from './AleijadinhoWorking.js';
 import { SavedRigCalibration } from './SavedRigCalibration.js';
+import { repairTorsoSkinWeights } from './TorsoSkinWeights.js';
 import { buildStudyRoom } from './PeriodRoom.js';
 import { buildAleijadinhoRoom } from './AleijadinhoRoom.js';
 import { buildReboucasRoom } from './ReboucasRoom.js';
@@ -89,8 +91,9 @@ function bookshelf( b, { x = 0, z = -1.18, w = 3.7, h = 2.75, shelves = 5, wood 
 // -------- Cenário do Machado de Assis: gabinete de escritor do Rio, séc. XIX --------
 const MACHADO = {
 	id: 'machado', name: 'Machado de Assis', dates: '1839 · 1908', role: 'Escritor · Fundador da ABL',
-	model: '/models/characters/machado-escrita.glb',
+	model: '/models/characters/machado-escrita.glb?v=hands-corrected-20261114',
 	// Altura do personagem em metros e onde ele fica no set (x ao longo do corredor, z para a frente).
+	sharedSpot: true, // no passeio em anel, a luz da sala é uma só para a cena toda (ver CharacterSets.cull)
 	height: 1.72, stand: { x: 0.45, z: 0.55 }, facing: 0.0,
 	build( b ) {
 		const wood = '#5a3d2b', dark = '#352318', gold = '#d3ad66', leather = '#7a2f2a'
@@ -142,8 +145,7 @@ const REBOUCAS = {
 	model: null, height: 1.5, stand: { x: 0.45, z: 0.55 }, facing: 0.0, room: buildReboucasRoom, lightScale: .12, openBack: true, maxX: 44,
 }
 // Escurecimento da pele de cada personagem (a pele vem pintada na textura; o shader escurece só os pixels de pele, mantendo detalhe).
-export const HAIR = { from: .66, blur: 2.6, tone: 1 } // cabelo do Machado: a partir de que altura da cabeça (0–1), quanto borrar a textura (mip), ganho de cor
-export const SKIN = { machado: .52, aleijadinho: .78 } // 1 = sem mudança
+export const SKIN = { aleijadinho: .78 } // 1 = sem mudança
 export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS ]
 
 // Quem aparece onde.
@@ -152,14 +154,19 @@ export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS ]
 //   - 2 ou mais: alternam esquerda/direita a cada baia (0: startSide, 1: oposto, 2: startSide…), assim o corredor fica
 //     equilibrado; com 2 pessoas cada uma ocupa um lado.
 // Retorna [{ character, logical, side }]. `logical` é a baia onde o nicho está (a 1ª pessoa fica na baia `first`).
-export function layout( people = 1, startSide = -1, first = 1, focus = null ) {
-	const order = focus && CATALOG.some( c => c.id === focus ) ? [ CATALOG.find( c => c.id === focus ), ...CATALOG.filter( c => c.id !== focus ) ] : CATALOG // `focus`: personagem que vai primeiro (link ?set=)
+export function layout( people = 1, startSide = -1, first = 1, focus = null, only = null ) {
+	const pool = only ? CATALOG.filter( c => only.includes( c.id ) ) : CATALOG // `only`: só estes personagens (o site publicado só tem o Machado: ele repete em todos os nichos)
+	const order = focus && pool.some( c => c.id === focus ) ? [ pool.find( c => c.id === focus ), ...pool.filter( c => c.id !== focus ) ] : pool // `focus`: personagem que vai primeiro (link ?set=)
 	return Array.from( { length: people }, ( _, i ) => ( { character: order[ i % order.length ], logical: first + i, side: people === 1 ? startSide : ( i % 2 === 0 ? startSide : - startSide ) } ) )
 }
 
+const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sp = new THREE.Sphere()
+
 export class CharacterSets {
-	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null } = {} ) {
-		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus ).map( e => ( { ...e, group: new THREE.Group(), ready: false } ) )
+	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, loop = false } = {} ) {
+		// loop = passeio infinito: as `people` salas formam um anel; quando uma fica para trás, pula `people` baias adiante (já escondida na névoa) e o passeio repete.
+		this.loop = loop; this.period = people; this.range = people * BAY_LENGTH / 2 - 3; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
+		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus, only ).map( e => ( { ...e, base: e.logical, group: new THREE.Group(), ready: false } ) )
 		this.lights = []; this.statics = new Map(); this.characterMaterials = new Map(); this.dimensions = {}
 		this.propMat = new THREE.MeshStandardNodeMaterial( { vertexColors: true, roughness: .72, metalness: .05 } )
 		this.propMat.emissiveNode = vertexColor().mul( vec3( .2, .15, .1 ) ).mul( galleryBrightness )
@@ -169,40 +176,48 @@ export class CharacterSets {
 	async load() {
 		const loader = new GLTFLoader().setMeshoptDecoder( MeshoptDecoder )
 		if(this.renderer) loader.setKTX2Loader(ktx2Loader.detectSupport(this.renderer))
+		const modelCache = new Map() // um download/decodificação por modelo; as repetições são clones (geometria, materiais e texturas compartilhados)
 		for ( const e of this.entries ) {
 			const def = e.character
 			// sala de época fechada (piso, paredes, abóbada, móveis) + placa na entrada
 			e.room = await ( def.room ?? buildStudyRoom )( e.group, { galleryBrightness } )
+			// luz do set: UMA só para a cena toda, que acompanha a sala mais próxima (uma luz por sala encareceria todos os pixels)
+			if ( this.loop && def.sharedSpot && e.room?.sun?.isSpotLight ) {
+				const s = e.room.sun
+				if ( ! this.spot ) { this.spot = s.clone(); this.spot.target = new THREE.Object3D(); this.gallery.scene.add( this.spot, this.spot.target ) }
+				e.spotLocal = { p: s.position.clone(), t: s.target.position.clone() }
+				e.room.room.remove( s, s.target ); e.room.sun = this.spot
+			}
 			// personagem
 			try {
-				if ( def.model ) { const gltf = await loader.loadAsync( def.model ); this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();} }
+				if ( def.model ) { let src = modelCache.get( def.model ); const first = ! src; if ( first ) { src = await loader.loadAsync( def.model ); modelCache.set( def.model, src ) }
+					const gltf = first ? src : { ...src, scene: SkeletonUtils.clone( src.scene ) }
+					this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();} }
 			} catch ( err ) { throw new Error(`Personagem ${def.id}: ${err.message}`) }
 			e.ready = true
 		}
 	}
-	material( src, id = null, meshName = '', geom = null ) {
+	material( src, id = null, meshName = '' ) {
 		if ( this.characterMaterials.has( src ) ) return this.characterMaterials.get( src )
 		const vc = !! src.vertexColors, m = new THREE.MeshStandardNodeMaterial( { color: src.color.clone(), map: src.map, normalMap: src.normalMap, normalScale: new THREE.Vector2( .5, .5 ), roughness: Math.max( .55, src.roughness ?? .8 ), metalness: 0, side: src.side, vertexColors: vc } )
 		const d = SKIN[ id ] // 1 = pele como veio no modelo; menor = mais escura
 		if ( m.map ) {
 			let c = texture( m.map ).rgb // vertexColors = tom de pele (Aleijadinho)
-			if ( id === 'machado' && geom && /cabe/i.test( meshName ) ) { // cabelo: amostra a textura numa mip mais borrada (some o ruído/blocos da compressão) e deixa os cachos da malha darem o detalhe
-					geom.computeBoundingBox(); const b = geom.boundingBox, hy = ( positionGeometry.y.sub( b.min.y ) ).div( b.max.y - b.min.y ), hair = smoothstep( HAIR.from, HAIR.from + .1, hy )
-					c = mix( c, texture( m.map ).bias( HAIR.blur ).rgb.mul( HAIR.tone ), hair )
-				}
 			let vcMask = float( 1 ); if ( vc ) { const v = vertexColor().rgb; vcMask = smoothstep( .03, .12, v.max( v.zxy ).max( v.yzx ).sub( v.min( v.zxy ).min( v.yzx ) ) ); c = c.mul( v ); m.vertexColors = false } // no Aleijadinho a cor de vértice marca a pele
 			if ( d != null && d < 1 ) { // pele = pixels avermelhados; na cabeça vale a malha toda, no corpo só as mãos (pontas dos braços do modelo)
 				const skin = vc ? vcMask : smoothstep( .05, .15, c.r.sub( c.b ) ).mul( smoothstep( 0, .05, c.r.sub( c.g ) ) )
 				const region = /cabe/i.test( meshName ) || id === 'aleijadinho' ? float( 1 ) : smoothstep( .76, .84, positionGeometry.x.abs() )
 				const lum = dot( c, vec3( .299, .587, .114 ) ); c = mix( c, vec3( 1, .58, .36 ).mul( lum ).mul( d * 1.6 ), skin.mul( region ) ) // troca a cor da pele por marrom (mesma luminosidade x d), mantendo o detalhe
 			}
-				m.colorNode = c; m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
+				m.colorNode = c;
+			if ( id !== 'machado' ) m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
 		}		applyReceivedLighting( m ); this.characterMaterials.set( src, m ); return m
 	}
 	placeCharacter( e, gltf ) {
 		const def = e.character, root = gltf.scene
+		if(def.id==='aleijadinho')repairTorsoSkinWeights(root);
 		if (def.id === 'machado') {
-			root.traverse(n => {if(n.isMesh){n.material=this.material(n.material,'machado',n.name,n.geometry);n.castShadow=true;n.receiveShadow=true;n.frustumCulled=false;}})
+			root.traverse(n => {if(n.isMesh){n.material=this.material(n.material,'machado',n.name);n.castShadow=true;n.receiveShadow=true;n.frustumCulled=false;}})
 			e.animation = new MachadoWriting(e, gltf);
 			this.dimensions[def.id] = {height:1.72, animated:true};
 			return;
@@ -226,6 +241,10 @@ export class CharacterSets {
 	update( progress ) {
 		const g = this.gallery
 		for ( const e of this.entries ) {
+			if ( this.loop ) { // anel de salas: a mais próxima da câmera (±period/2 baias); lado alterna pela paridade da baia
+				e.logical = e.base + this.period * Math.round( ( progress / BAY_LENGTH - e.base ) / this.period )
+				e.side = ( ( ( e.logical - this.first ) % 2 ) + 2 ) % 2 === 0 ? this.startSide : - this.startSide
+			}
 			const z = progress - e.logical * BAY_LENGTH + ( e.side === 1 ? - BAY_LENGTH / 2 : 0 ) // centro do nicho (esq.: no meio da baia; dir.: meia baia à frente)
 			e.group.position.set( e.side * NICHE_X, NICHE_TOP, z )
 			e.group.rotation.y = e.side === - 1 ? Math.PI / 2 : - Math.PI / 2 // +Z local → corredor
@@ -233,7 +252,31 @@ export class CharacterSets {
 			e.worldZ = z
 		}
 	}
-	animate(dt) { for (const e of this.entries) if (e.animation && e.group.visible) e.animation.update(dt); }
+	// Chamar a cada quadro, depois de posicionar a câmera (só no passeio em anel): sala só desenhada se está ao alcance E no campo de visão;
+	// o personagem só existe/anima nas salas a menos de 18 m; a luz do set vai para a sala visível mais próxima.
+	cull( camera ) {
+		if ( ! this.loop ) return
+		camera.updateMatrixWorld(); _pv.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ); _fr.setFromProjectionMatrix( _pv )
+		let best = null, bd = 1e9
+		for ( const e of this.entries ) {
+			if ( e.worldZ === undefined ) continue
+			const x = e.side * NICHE_X, d = Math.hypot( x - camera.position.x, e.worldZ - camera.position.z )
+			_sp.center.set( x, 1.5, e.worldZ ); _sp.radius = 5.5
+			e.group.visible = e.ready && Math.abs( e.worldZ ) < this.range && ( d < 6 || _fr.intersectsSphere( _sp ) )
+			e.near = e.group.visible && d < 18
+			if ( e.animation?.holder ) e.animation.holder.visible = e.near
+			if ( e.group.visible && d < bd ) { bd = d; best = e }
+		}
+		if ( this.spot ) {
+			if ( best?.spotLocal ) {
+				if ( this.spotBase == null ) this.spotBase = this.spot.intensity
+				best.group.updateMatrixWorld( true )
+				this.spot.position.copy( best.spotLocal.p ).applyMatrix4( best.group.matrixWorld ); this.spot.target.position.copy( best.spotLocal.t ).applyMatrix4( best.group.matrixWorld )
+				this.spot.intensity = this.spotBase
+			} else if ( this.spotBase != null ) this.spot.intensity = 0
+		}
+	}
+	animate(dt) { for (const e of this.entries) if (e.animation && e.group.visible && e.near !== false) e.animation.update(dt); }
 	getStats() { return { sets: this.entries.map( e => ( { id: e.character.id, logical: e.logical, side: e.side, ready: e.ready, animation: e.animation?.getStats() } ) ), dimensions: this.dimensions } }
 }
 
