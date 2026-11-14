@@ -16,6 +16,7 @@ import { TimberRoof } from './TimberRoof.js';
 import { HangingPlants } from './HangingPlants.js';
 import './lighting-controls.css';
 import { createLightingControls } from './LightingControls.js';
+import { AleijadinhoRigEditor } from './AleijadinhoRigEditor.js';
 
 const params=new URLSearchParams(location.search);
 const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<700;
@@ -30,10 +31,10 @@ function notice(text,ms=2200){$('notice').textContent=text;$('notice').classList
 async function main(){
  progress(8,'Acendendo as luzes…');
  const style={toneMapping:'aces',exposure:1.1,shadows:{type:'pcf'},outline:{enabled:false},ao:null,bloom:low?null:{strength:.16,radius:.45,threshold:1.35},vignette:.3,grain:false,grade:{saturation:1.08,contrast:1.07,shadows:'#2a3358',highlights:'#fff0d6',split:.14}};
- const engine=await new Engine({style,quality:{maxDpr:low?1.25:1.6},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
+ const engine=await new Engine({style,quality:{maxDpr:low?2:1.6},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
  // Shader upload during loading must not be mistaken for steady-state GPU load.
  engine.adaptive=false;
- const renderer=engine.renderer;const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',16,62);
+ const renderer=engine.renderer;const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?14:16,low?50:62);
  const camera=new THREE.PerspectiveCamera(innerWidth<700?67:58,innerWidth/innerHeight,.08,130);camera.position.set(-.3,2.15,0);
  engine.onResize((w,h)=>{camera.aspect=w/h;camera.fov=w<700?67:58;camera.updateProjectionMatrix();});
  const hemi=new THREE.HemisphereLight('#9aabd7','#59435c',.9);scene.add(hemi);
@@ -62,17 +63,19 @@ async function main(){
    materials.lamp.color.copy(lampBase);materials.chandelier.color.copy(pendantBase);materials.glow.opacity=.2*brightness;
   }
  });
- const gallery=new Gallery(scene,materials,{count:19});
+ // Corredor residente: só as baias que cabem na névoa (antes 19 = 228 m, ~1,3 M de triângulos desenhados sem ninguém ver).
+ const gallery=new Gallery(scene,materials,{count:low?7:9});
  // Sets de personagens: ?people=N (quantas pessoas), ?side=left|right (lado da 1ª), ?set=machado (abre parado diante do set).
  const people=Math.max(1,Math.min(12,Number(params.get('people'))||1));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
- const setParam=params.has('set')?params.get('set'):(import.meta.env.PROD&&!params.has('tour')?'machado':null);
+ const setParam=params.has('rig')?'aleijadinho':params.has('set')?params.get('set'):(import.meta.env.PROD&&!params.has('tour')?'machado':null);
  const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
- const parkedId=setParam;
+ const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
  state.camX=-.3;state.eye=2.15;
+ if(parked){Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10});sun.shadow.camera.updateProjectionMatrix();}
  if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||1.5);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
  gallery.update(state.distance);
  const pipeline=new Pipeline(renderer,scene,camera,style,{aa:'fxaa',bloomMips:3});
@@ -91,15 +94,17 @@ async function main(){
  const moveBy=(dx,dz)=>{const nx=state.camX+dx,nd=Math.max(0,state.distance-dz);if(nicheOpen(nx,state.distance))state.camX=THREE.MathUtils.clamp(nx,-maxX,maxX);if(nicheOpen(state.camX,nd))state.distance=nd;};
  engine.setLoop((dt,t)=>{
   if(document.hidden)return;
-  if(!state.paused)state.distance+=dt*(state.exploring ? .95 : .42)*state.speed;
+  if(!state.paused&&!state.rigEditing)state.distance+=dt*(state.exploring ? .95 : .42)*state.speed;
   // Caminhada livre (W/S frente-trás, A/D laterais, Shift corre): usa a câmera dentro da galeria sem retomar o passeio automático.
   const walkDir=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),strafe=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
-  if(walkDir||strafe){const v=(keys.has('ShiftLeft')?4:1.9)*dt,c=Math.cos(state.yaw),s=Math.sin(state.yaw);
+  if(!state.rigEditing&&(walkDir||strafe)){const v=(keys.has('ShiftLeft')?4:1.9)*dt,c=Math.cos(state.yaw),s=Math.sin(state.yaw);
    // yaw>0 olha para a esquerda (-x). Frente = (-sin, -cos) no plano x/z.
    const dx=(-s*walkDir+c*strafe)*v,dz=(-c*walkDir-s*strafe)*v;
    moveBy(dx,dz);}
   gallery.update(state.distance);
   sets.animate(dt);
+  // Parado num set: a sombra do sol cobre só a sala (±10 m em vez de 34×44 m) → 4× mais nitidez com o mesmo mapa, e segue a sala se o visitante andar.
+  if(parked&&parked.worldZ!==undefined){const tz=Math.round(parked.worldZ*2)/2;if(tz!==shadowZ){shadowZ=tz;const tx=parked.side*NICHE_X;sun.target.position.set(tx,1.2,tz);sun.position.set(tx-15,19.2,tz-14);}}
   {const near=[...sets.entries].filter(e=>e.worldZ!==undefined).sort((a,b)=>Math.abs(a.worldZ)-Math.abs(b.worldZ));
    setLights.forEach((l,i)=>{const e=near[i];if(!e){l.intensity=0;return;}const d=Math.abs(e.worldZ);l.position.set(e.side*(NICHE_X-.5),3.4,e.worldZ+(i?.7:-.7));l.intensity=10*lightControls.settings.brightness*(1-THREE.MathUtils.smoothstep(d,14,30));});}
   const lampPhase=state.distance%BAY_LENGTH;
@@ -111,6 +116,7 @@ async function main(){
   camera.rotation.set(.015+state.pitch,state.yaw-.015,0,'YXZ');
   if(window.__camOverride){const o=window.__camOverride;camera.position.set(...o.pos);camera.lookAt(...o.at);if(o.fov&&camera.fov!==o.fov){camera.fov=o.fov;camera.updateProjectionMatrix();}} // depuração: câmera livre
   dustCloud.position.z=(state.distance%BAY_LENGTH);if(!reduced)dustCloud.position.y=Math.sin(t*.12)*.06;
+  window.__game?.rigEditor?.updateOverlay();
   pipeline.render();
   if(t-lastUi>.4){$('distance').textContent=`${Math.floor(state.distance).toString().padStart(3,'0')} m`;lastUi=t;}
  });
@@ -122,16 +128,20 @@ async function main(){
  $('cinema').onclick=cinema;$('restore').onclick=cinema;
  $('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{notice('Use a opção de tela cheia do navegador');}};
  addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
- addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement)return;if(e.target instanceof HTMLButtonElement&&(e.code==='Space'||e.code==='Enter'))return;if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft'].includes(e.code)){keys.add(e.code);if(e.code!=='ShiftLeft'){state.paused=true;$('pause-icon').textContent='▷';enter();}return;}if(e.code==='Space'){e.preventDefault();togglePause();}if(e.code==='KeyH')cinema();if(e.code==='KeyB')state.targetYaw+=Math.PI;if(e.code==='Escape'){document.body.classList.remove('cinema');state.targetYaw=0;state.targetPitch=0;}if(e.code==='ArrowLeft')state.targetYaw+=.12;if(e.code==='ArrowRight')state.targetYaw-=.12;if(e.code==='ArrowUp')state.targetPitch=Math.min(1.45,state.targetPitch+.08);if(e.code==='ArrowDown')state.targetPitch=Math.max(-1.45,state.targetPitch-.08);});
- renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();state.paused=true;$('pause-icon').textContent='▷';enter();const f=-e.deltaY*.0022;moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);},{passive:false});
+ addEventListener('keydown',e=>{if(state.rigEditing)return;if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement)return;if(e.target instanceof HTMLButtonElement&&(e.code==='Space'||e.code==='Enter'))return;if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft'].includes(e.code)){keys.add(e.code);if(e.code!=='ShiftLeft'){state.paused=true;$('pause-icon').textContent='▷';enter();}return;}if(e.code==='Space'){e.preventDefault();togglePause();}if(e.code==='KeyH')cinema();if(e.code==='KeyB')state.targetYaw+=Math.PI;if(e.code==='Escape'){document.body.classList.remove('cinema');state.targetYaw=0;state.targetPitch=0;}if(e.code==='ArrowLeft')state.targetYaw+=.12;if(e.code==='ArrowRight')state.targetYaw-=.12;if(e.code==='ArrowUp')state.targetPitch=Math.min(1.45,state.targetPitch+.08);if(e.code==='ArrowDown')state.targetPitch=Math.max(-1.45,state.targetPitch-.08);});
+ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();if(state.rigEditing)return;state.paused=true;$('pause-icon').textContent='▷';enter();const f=-e.deltaY*.0022;moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);},{passive:false});
  // Toque/mouse: 1 dedo arrasta para olhar; 2 dedos (pinça) avançam/recuam, como a roda do mouse.
+ // Celular em pé: pede para virar na horizontal (a galeria é um panorama largo). Toque em "Tela cheia" tenta travar a orientação (Android); no iPhone só dá para girar o aparelho.
+ {const rotate=$('rotate'),portrait=matchMedia('(orientation: portrait)'),touch=matchMedia('(pointer:coarse)').matches;let skipped=false;const upd=()=>{rotate.hidden=!(touch&&portrait.matches&&!skipped);};
+  portrait.addEventListener('change',upd);upd();$('rotate-skip').onclick=()=>{skipped=true;upd();};
+  $('rotate-go').onclick=async()=>{try{await document.documentElement.requestFullscreen({navigationUI:'hide'});}catch{}try{await screen.orientation.lock('landscape');}catch{notice('Gire o celular para a horizontal',3000);}upd();};}
  let dragging=false,px=0,py=0,pinch=0;const pts=new Map();const pinchDist=()=>{const [a,b]=[...pts.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
  renderer.domElement.style.touchAction='none';
- renderer.domElement.addEventListener('pointerdown',e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY});renderer.domElement.setPointerCapture(e.pointerId);enter();if(pts.size===2){dragging=false;pinch=pinchDist();}else{dragging=true;px=e.clientX;py=e.clientY;}});
- renderer.domElement.addEventListener('pointermove',e=>{const p=pts.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY;}if(pts.size===2){const d=pinchDist(),f=(d-pinch)*.006;pinch=d;state.paused=true;$('pause-icon').textContent='▷';moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);return;}if(!dragging)return;state.targetYaw+=(e.clientX-px)*.0025;state.targetPitch=THREE.MathUtils.clamp(state.targetPitch+(e.clientY-py)*.002,-1.45,1.45);px=e.clientX;py=e.clientY;});
+ renderer.domElement.addEventListener('pointerdown',e=>{if(state.rigEditing)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});renderer.domElement.setPointerCapture(e.pointerId);enter();if(pts.size===2){dragging=false;pinch=pinchDist();}else{dragging=true;px=e.clientX;py=e.clientY;}});
+ renderer.domElement.addEventListener('pointermove',e=>{if(state.rigEditing)return;const p=pts.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY;}if(pts.size===2){const d=pinchDist(),f=(d-pinch)*.006;pinch=d;state.paused=true;$('pause-icon').textContent='▷';moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);return;}if(!dragging)return;state.targetYaw+=(e.clientX-px)*.0025;state.targetPitch=THREE.MathUtils.clamp(state.targetPitch+(e.clientY-py)*.002,-1.45,1.45);px=e.clientX;py=e.clientY;});
  const endDrag=e=>{pts.delete(e.pointerId);dragging=false;if(pts.size===1){const [r]=[...pts.values()];px=r.x;py=r.y;dragging=true;}};renderer.domElement.addEventListener('pointerup',endDrag);renderer.domElement.addEventListener('pointercancel',endDrag);renderer.domElement.addEventListener('lostpointercapture',endDrag); if(state.exploring)enter();if(params.has('clean'))document.body.classList.add('cinema');if(state.paused)$('pause-icon').textContent='▷';
- window.__game={THREE,renderer,engine,scene,camera,gallery,state,pipeline,lightControls,stats:()=>({...gallery.getStats(),plantLoaded:state.plantLoaded,assetsReady:state.assetsReady,assetError:state.assetError,drawCalls:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,dpr:renderer.getPixelRatio()}),advance:meters=>{state.distance+=meters;gallery.update(state.distance);},pause:()=>{state.paused=true;},look:(yaw,pitch=0)=>{state.targetYaw=yaw;state.targetPitch=pitch;}};
- progress(100,'Bem-vindo ao Legado'); // Painel "Mesa": escolher um objeto em cima da escrivaninha e posicioná-lo (X ao longo da mesa, Z em profundidade, giro). Salva no navegador.
+ window.__game={clearKeys:()=>keys.clear(),THREE,renderer,engine,scene,camera,gallery,state,pipeline,lightControls,stats:()=>({...gallery.getStats(),plantLoaded:state.plantLoaded,assetsReady:state.assetsReady,assetError:state.assetError,drawCalls:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,dpr:renderer.getPixelRatio()}),advance:meters=>{state.distance+=meters;gallery.update(state.distance);},pause:()=>{state.paused=true;},look:(yaw,pitch=0)=>{state.targetYaw=yaw;state.targetPitch=pitch;}};
+ progress(parked?72:100,parked?'Montando o escritório…':'Bem-vindo ao Legado'); // Painel "Mesa": escolher um objeto em cima da escrivaninha e posicioná-lo (X ao longo da mesa, Z em profundidade, giro). Salva no navegador.
  const buildDeskPanel=()=>{
   const desk=parked?.room?.desk;if(!desk)return;
   const panel=document.createElement('div');panel.id='desk-panel';
@@ -147,11 +157,13 @@ async function main(){
   const setOpen=open=>{panel.classList.toggle('closed',!open);panel.querySelector('.chev').textContent=open?'▾':'▸';desk.marker(open);};
   panel.querySelector('h4').onclick=()=>setOpen(panel.classList.contains('closed'));
   desk.select(sel.value);sync();setOpen(true);document.body.appendChild(panel);
- };if(parked)setTimeout(()=>notice(mobile?'Arraste para olhar · pinça com dois dedos para avançar':'W A S D andar · arraste para olhar · roda do mouse avança · Shift corre',7000),600);setTimeout(()=>$('loading').classList.add('done'),160);
+ };if(parked)setTimeout(()=>notice(mobile?'Arraste para olhar · pinça com dois dedos para avançar':'W A S D andar · arraste para olhar · roda do mouse avança · Shift corre',7000),600);const hideLoading=()=>$('loading').classList.add('done');if(!parked)setTimeout(hideLoading,160);
  const curated=new CuratedAssets(gallery);gallery.curated=curated;
  const timber=new TimberRoof(gallery);gallery.timber=timber;
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
- try{await Promise.all([curated.load(),timber.load(),sets.load(),hangingPlants.load().then(()=>{state.plantLoaded=true;})]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
+ // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
+ const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]);
+ try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const editor=new AleijadinhoRigEditor(aleijadinho.animation,window.__game);window.__game.rigEditor=editor;await editor.load();if(params.has('rig'))editor.open();}engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }
 main().catch(error=>{console.error(error);progress(100,'Não foi possível iniciar a galeria. Recarregue a página.');$('load-label').style.maxWidth='300px';$('load-label').style.textAlign='center';});

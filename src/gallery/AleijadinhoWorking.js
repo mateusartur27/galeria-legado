@@ -154,6 +154,8 @@ export class AleijadinhoWorking {
 				g.quaternion.setFromUnitVectors( new THREE.Vector3( 0, 0, 1 ), back ); }
 		}
 	}	update( dt ) {
+		if ( this.rigEditor?.editing && ! this.rigEditor.preview ) return;
+		this.rigEditor?.restorePoseOffsets();
 		if ( this.rest ) { for ( const [ n, p, q, s ] of this.restPose ) { n.position.copy( p ); n.quaternion.copy( q ); n.scale.copy( s ); } return; }
 		this.autoHitTime();
 		if ( this.playing ) {
@@ -162,6 +164,7 @@ export class AleijadinhoWorking {
 			this.stepChips?.( Math.min( dt, .1 ) );
 		}
 		this.mixer.setTime( this.time );
+		this.rigEditor?.applyCalibration();
 	}
 	seek( seconds ) { this.time = ( ( seconds % this.clip.duration ) + this.clip.duration ) % this.clip.duration; this.update( 0 ); }
 	getStats() { return { clip: this.clip.name, duration: this.clip.duration, time: this.time, playing: this.playing, bones: Object.keys( this.bones ).length }; }
