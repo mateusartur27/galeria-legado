@@ -96,13 +96,15 @@ export class Engine {
 
 			if ( this.slow >= 2 ) { this.level ++; this.settings.degrade?.( this.level ); this.goodWindows = 0; this.slow = 0 }
 
-		} else if ( avg > 21 && this.dpr > this.minDpr ) {
+		} else if ( avg > 21 && this.dpr > this.minDpr && this.slow >= 2 ) {
 
 			this.dpr = Math.max( this.minDpr, this.dpr - 0.25 )
 			this.renderer.setPixelRatio( this.dpr )
-			this.goodWindows = 0
+			this.goodWindows = 0; this.slow = 0
 
-		} else if ( avg < 17.5 && this.dpr < this.maxDpr ) {
+			this.dprLocked = true // depois de baixar a resolução uma vez, não sobe de novo: subir/descer recria as imagens do pipeline e causa travadinha periódica
+
+		} else if ( avg < 17.5 && this.dpr < this.maxDpr && ! this.dprLocked ) {
 
 			if ( ++ this.goodWindows >= 3 ) {
 

@@ -35,7 +35,7 @@ async function main(){
  const engine=await new Engine({style,quality:{maxDpr:low?2:1.6,minDpr:low?1.25:.75,levels:2},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
  // Shader upload during loading must not be mistaken for steady-state GPU load.
  engine.adaptive=false;
- const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?14:16,low?50:62);
+ const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?10:16,low?32:62);
  const camera=new THREE.PerspectiveCamera(innerWidth<700?67:58,innerWidth/innerHeight,.08,130);camera.position.set(-.3,2.15,0);
  engine.onResize((w,h)=>{camera.aspect=w/h;camera.fov=w<700?67:58;camera.updateProjectionMatrix();});
  const hemi=new THREE.HemisphereLight('#9aabd7','#59435c',.9);scene.add(hemi);
@@ -65,7 +65,7 @@ async function main(){
   }
  });
  // Corredor residente: só as baias que cabem na névoa (antes 19 = 228 m, ~1,3 M de triângulos desenhados sem ninguém ver).
- const gallery=new Gallery(scene,materials,{count:low?7:9});
+ const gallery=new Gallery(scene,materials,{count:low?5:9});
  // Sem sombras projetadas pelo corredor (manchas diagonais nas paredes/colunas); só a sala e o personagem projetam sombra.
  const stripShadows=()=>scene.children.forEach(o=>{if(/^(gallery|asset)-/.test(o.name))o.castShadow=false;});stripShadows();
  // Sets de personagens: ?people=N (quantas pessoas), ?side=left|right (lado da 1ª), ?set=machado (abre parado diante do set).
@@ -172,7 +172,7 @@ async function main(){
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
  // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
  // No celular parado num set, a decoração do corredor (lustres, vasos, estátuas, vigas: ~300 mil triângulos) nem é carregada.
- const decor=()=>low&&parked?Promise.resolve():Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(stripShadows);
+ const decor=()=>low&&parked?Promise.resolve():Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(()=>{stripShadows();gallery.dirty=true;});
  try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}}const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }

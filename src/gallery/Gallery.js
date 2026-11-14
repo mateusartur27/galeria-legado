@@ -251,6 +251,8 @@ export class Gallery{
  // Parede do fundo de um nicho pode ser aberta (set com openBack): some só nessa baia (a do nicho esquerdo; a do direito fica entre duas baias).
  bayFlag(prop,side,logical){return !!this.sets?.entries?.some(e=>e.character[prop]&&e.side===side&&(side===-1?e.logical===logical:(logical===e.logical||logical===e.logical+1)));}
  update(progress){
+  // Câmera parada (set aberto): nada muda, então não reenvia à GPU as matrizes de centenas de instâncias a cada quadro (travadinhas + lixo de memória).
+  if(progress===this.lastProgress&&!this.dirty)return;this.lastProgress=progress;this.dirty=false;
   this.progress=progress;const base=Math.floor(progress/BAY_LENGTH)-this.behind;if(base!==this.base){this.recycles+=Math.abs(base-this.base);this.base=base;}
   // Camera stays near the origin. Reposition a bounded ring; no growing world coordinates.
   const phase=progress%BAY_LENGTH;
