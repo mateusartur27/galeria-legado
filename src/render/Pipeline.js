@@ -284,6 +284,18 @@ export class Pipeline {
 		// ---------- Anti-aliasing em pós (MSAA não combina com MRT barato)
 		const aaNode = msaa ? finalNode : quality.aa === 'smaa' ? smaa( finalNode ) : fxaa( finalNode )
 		this.pipeline.outputNode = aaNode
+		this.msaa = msaa; this.finalNode = finalNode; this.scenePassRef = scenePass
+
+	}
+
+	// Desliga o MSAA em tempo de execução (aparelho lento): volta ao FXAA em pós.
+	disableMsaa() {
+
+		if ( ! this.msaa ) return
+		this.msaa = false
+		this.scenePassRef.options.samples = 0
+		this.pipeline.outputNode = fxaa( this.finalNode )
+		this.pipeline.needsUpdate = true
 
 	}
 

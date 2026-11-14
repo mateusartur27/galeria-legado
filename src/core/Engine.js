@@ -14,7 +14,9 @@ export class Engine {
 
 		this.settings = settings
 		this.maxDpr = Math.min( devicePixelRatio, settings.quality.maxDpr )
-		this.minDpr = Math.min( 0.75, this.maxDpr )
+		this.minDpr = Math.min( settings.quality.minDpr ?? 0.75, this.maxDpr )
+		this.level = 0 // escada de qualidade: sobe quando o aparelho não aguenta (settings.degrade(level) desliga efeitos) antes de baixar a resolução
+		this.maxLevel = settings.quality.levels ?? 0
 		this.dpr = settings.fixedDpr ?? this.maxDpr
 		this.adaptive = settings.fixedDpr === null
 		this.frameTimes = []
@@ -89,7 +91,12 @@ export class Engine {
 		this.windowStart = now
 		if ( ! this.adaptive ) return
 
-		if ( avg > 21 && this.dpr > this.minDpr ) {
+		this.slow = avg > 21 ? ( this.slow ?? 0 ) + 1 : 0 // só degrada após 2 janelas lentas seguidas (evita reagir a um engasgo de compilação de shader)
+		if ( avg > 21 && this.level < this.maxLevel ) {
+
+			if ( this.slow >= 2 ) { this.level ++; this.settings.degrade?.( this.level ); this.goodWindows = 0; this.slow = 0 }
+
+		} else if ( avg > 21 && this.dpr > this.minDpr ) {
 
 			this.dpr = Math.max( this.minDpr, this.dpr - 0.25 )
 			this.renderer.setPixelRatio( this.dpr )

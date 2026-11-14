@@ -32,7 +32,7 @@ function notice(text,ms=2200){$('notice').textContent=text;$('notice').classList
 async function main(){
  progress(8,'Acendendo as luzes…');
  const style={toneMapping:'aces',exposure:1.1,shadows:{type:'pcf'},outline:{enabled:false},ao:null,bloom:low?null:{strength:.16,radius:.45,threshold:1.35},vignette:.3,grain:false,grade:{saturation:1.08,contrast:1.07,shadows:'#2a3358',highlights:'#fff0d6',split:.14}};
- const engine=await new Engine({style,quality:{maxDpr:low?2:1.6},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
+ const engine=await new Engine({style,quality:{maxDpr:low?2:1.6,minDpr:low?1.25:.75,levels:2},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
  // Shader upload during loading must not be mistaken for steady-state GPU load.
  engine.adaptive=false;
  const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?14:16,low?50:62);
@@ -82,6 +82,10 @@ async function main(){
  if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||2.8);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
  gallery.update(state.distance);
  const pipeline=new Pipeline(renderer,scene,camera,style,{aa:'fxaa',msaa:4,bloomMips:3}); // msaa 4×: bordas limpas nos personagens (o FXAA sozinho serrilhava e borrava)
+ // Escada de qualidade: aparelho lento desliga efeitos ANTES de baixar a resolução (que é o que deixa pixelado). 1 = sem MSAA (FXAA); 2 = sem sombra do sol nem luzes extras do corredor.
+ engine.settings.degrade=level=>{if(level>=1)pipeline.disableMsaa();if(level>=2){sun.castShadow=false;chandelierLights.forEach(l=>{l.visible=false;});setLights.forEach(l=>{l.visible=false;});}console.info('qualidade nível',level);};
+ // ?stats: contador na tela (motor, fps, resolução, nível) para diagnosticar no celular.
+ if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
  progress(62,'Preparando o percurso…');
  // Bounded dust field, deliberately sparse and only bright in the upper gallery.
  const dustGeometry=new THREE.BufferGeometry(),dust=new Float32Array(90*3);for(let i=0;i<90;i++){dust[i*3]=(Math.random()-.5)*9;dust[i*3+1]=.5+Math.random()*5.3;dust[i*3+2]=-Math.random()*65;}
