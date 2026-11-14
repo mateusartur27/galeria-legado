@@ -126,7 +126,7 @@ async function main(){
    const dx=px-state.camX,h=Math.hypot(dx,pz);state.targetYaw=Math.atan2(-dx,-pz)*tour.focus;state.targetPitch=Math.atan2(py-state.eye,h)*tour.focus;}else{state.targetYaw*=1-k;state.targetPitch*=1-k;}
  };
  engine.setLoop((dt,t)=>{
-  if(document.hidden)return;
+  if(document.hidden||state.warming)return;
   if(tourMode&&!state.exploring&&!state.paused)tourStep(dt);else if(!state.paused&&!state.rigEditing)state.distance+=dt*(state.exploring ? .95 : .42)*state.speed;
   // Caminhada livre (W/S frente-trás, A/D laterais, Shift corre): usa a câmera dentro da galeria sem retomar o passeio automático.
   const walkDir=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),strafe=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
@@ -189,14 +189,21 @@ async function main(){
   const setOpen=open=>{panel.classList.toggle('closed',!open);panel.querySelector('.chev').textContent=open?'▾':'▸';desk.marker(open);};
   panel.querySelector('h4').onclick=()=>setOpen(panel.classList.contains('closed'));
   desk.select(sel.value);sync();setOpen(true);document.body.appendChild(panel);
- };if(parked)setTimeout(()=>notice(mobile?'Arraste para olhar · pinça com dois dedos para avançar':'W A S D andar · arraste para olhar · roda do mouse avança · Shift corre',7000),600);const hideLoading=()=>$('loading').classList.add('done');if(!parked)setTimeout(hideLoading,160);
+ };if(parked)setTimeout(()=>notice(mobile?'Arraste para olhar · pinça com dois dedos para avançar':'W A S D andar · arraste para olhar · roda do mouse avança · Shift corre',7000),600);const hideLoading=()=>$('loading').classList.add('done');if(!parked&&!tourMode)setTimeout(hideLoading,160);
+ // Pré-aquecimento (atrás da tela de carregamento): compila todos os shaders e desenha cada sala uma vez para enviar texturas/geometrias à GPU; assim o passeio não engasga ao revelar uma sala nova.
+ const warmUp=async()=>{progress(90,'Preparando o passeio…');const nf=()=>new Promise(r=>requestAnimationFrame(r));state.warming=true;
+  for(const e of sets.entries){e.group.visible=true;if(e.animation?.holder)e.animation.holder.visible=true;}
+  await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);
+  const rot=camera.rotation.clone(),pos=camera.position.clone();
+  for(const e of sets.entries){camera.position.set(e.side*2.8,1.7,e.worldZ+(e.side===-1?-.5:.5));camera.rotation.set(0,-e.side*Math.PI/2,0,'YXZ');for(let i=0;i<2;i++){pipeline.render();await nf();}progress(90+Math.round(8*(sets.entries.indexOf(e)+1)/sets.entries.length),'Preparando o passeio…');}
+  camera.position.copy(pos);camera.rotation.copy(rot);state.warming=false;progress(100,'Bem-vindo ao Legado');};
  const curated=new CuratedAssets(gallery);gallery.curated=curated;
  const timber=new TimberRoof(gallery);gallery.timber=timber;
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
  // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
  // No celular parado num set, a decoração do corredor (lustres, vasos, estátuas, vigas: ~300 mil triângulos) nem é carregada.
  const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(()=>{stripShadows();gallery.dirty=true;});
- try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}aleijadinho.animation.toolEditor.mount(window.__game);}const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
+ try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else{await Promise.all([decor(),sets.load()]);if(tourMode)await warmUp();}}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}aleijadinho.animation.toolEditor.mount(window.__game);}const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }
 main().catch(error=>{console.error(error);progress(100,'Não foi possível iniciar a galeria. Recarregue a página.');$('load-label').style.maxWidth='300px';$('load-label').style.textAlign='center';});
