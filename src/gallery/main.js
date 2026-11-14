@@ -36,7 +36,8 @@ async function main(){
  const engine=await new Engine({style,quality:{maxDpr:low?2:1.6,minDpr:low?1.25:.75,levels:2},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
  // Shader upload during loading must not be mistaken for steady-state GPU load.
  engine.adaptive=false;
- const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?8:14,low?24:38);
+ const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color('#0d1530'); // = cor da névoa: a abertura do fim do corredor some na sombra em vez de ficar azul claro
+ scene.fog=new THREE.Fog('#0d1530',low?8:14,low?24:38);
  const camera=new THREE.PerspectiveCamera(innerWidth<700?67:58,innerWidth/innerHeight,.08,130);camera.position.set(-.3,2.15,0);
  engine.onResize((w,h)=>{camera.aspect=w/h;camera.fov=w<700?67:58;camera.updateProjectionMatrix();});
  const hemi=new THREE.HemisphereLight('#9aabd7','#59435c',.9);scene.add(hemi);
