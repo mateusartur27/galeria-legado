@@ -12,11 +12,12 @@ import './style.css';
 import { CuratedAssets } from './CuratedAssets.js';
 import { CharacterSets, NICHE_X } from './CharacterSets.js';
 import { windowView } from './PeriodRoom.js';
+import { ktx2Loader } from './Ktx.js';
 import { TimberRoof } from './TimberRoof.js';
 import { HangingPlants } from './HangingPlants.js';
 import './lighting-controls.css';
 import { createLightingControls } from './LightingControls.js';
-import { AleijadinhoRigEditor } from './AleijadinhoRigEditor.js';
+import { RigStudio } from './RigStudio.js';
 
 const params=new URLSearchParams(location.search);
 const mobile=matchMedia('(pointer:coarse)').matches||innerWidth<700;
@@ -34,7 +35,7 @@ async function main(){
  const engine=await new Engine({style,quality:{maxDpr:low?2:1.6},fixedDpr:params.has('dpr')?Number(params.get('dpr')):null,forceWebGL:params.has('webgl')}).init();
  // Shader upload during loading must not be mistaken for steady-state GPU load.
  engine.adaptive=false;
- const renderer=engine.renderer;const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?14:16,low?50:62);
+ const renderer=engine.renderer;ktx2Loader.detectSupport(renderer);const scene=new THREE.Scene();scene.background=new THREE.Color(PALETTE.haze);scene.fog=new THREE.Fog('#0d1530',low?14:16,low?50:62);
  const camera=new THREE.PerspectiveCamera(innerWidth<700?67:58,innerWidth/innerHeight,.08,130);camera.position.set(-.3,2.15,0);
  engine.onResize((w,h)=>{camera.aspect=w/h;camera.fov=w<700?67:58;camera.updateProjectionMatrix();});
  const hemi=new THREE.HemisphereLight('#9aabd7','#59435c',.9);scene.add(hemi);
@@ -71,7 +72,7 @@ async function main(){
  const people=Math.max(1,Math.min(12,Number(params.get('people'))||1));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
- const setParam=params.has('rig')?'aleijadinho':params.has('set')?params.get('set'):(import.meta.env.PROD&&!params.has('tour')?'machado':null);
+ const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):(import.meta.env.PROD&&!params.has('tour')?'machado':null);
  const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
@@ -165,7 +166,7 @@ async function main(){
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
  // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
  const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(stripShadows);
- try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const editor=new AleijadinhoRigEditor(aleijadinho.animation,window.__game);window.__game.rigEditor=editor;await editor.load();if(params.has('rig'))editor.open();const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}}engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
+ try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else await Promise.all([decor(),sets.load()]);}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}}const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }
 main().catch(error=>{console.error(error);progress(100,'Não foi possível iniciar a galeria. Recarregue a página.');$('load-label').style.maxWidth='300px';$('load-label').style.textAlign='center';});

@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { texLoader } from './Ktx.js';
 import { texture, color, vec3, uniform, positionWorld, smoothstep, step, mix, vec4 } from 'three/tsl';
 
 export const BAY_LENGTH=12;
@@ -52,7 +53,7 @@ export async function createMaterials(){
  const marble=marbleMap();marble.wrapS=marble.wrapT=THREE.RepeatWrapping;marble.repeat.set(6,8);marble.anisotropy=4;
  const runner=carpetMap();runner.wrapT=THREE.RepeatWrapping;runner.anisotropy=4;
  const mats={floor:new THREE.MeshStandardNodeMaterial({map:marble,color:'#b8b7bf',roughness:.42,metalness:.05,vertexColors:true}),carpet:new THREE.MeshStandardNodeMaterial({map:runner,roughness:1,vertexColors:true}),wood:toon('#594753'),ceiling:new THREE.MeshPhysicalNodeMaterial({color:'#e4cfb6',roughness:.94,metalness:0,specularIntensity:.12,clearcoat:0,envMapIntensity:.18,vertexColors:true}),plaster:toon(PALETTE.ivory),stone:std('#d1c7b7',.4),blue:toon('#34445d'),clay:toon('#b89485'),gold:std('#e0b776',.26,.7),dark:toon('#292c3f'),leaf:toon('#80a289'),ceramic:new THREE.MeshPhysicalNodeMaterial({color:'#3f6671',roughness:.28,metalness:.1,clearcoat:.65,vertexColors:true}),velvet:toon('#427270'),rope:toon('#932f48'),motif:new THREE.MeshStandardNodeMaterial({map:motifMap(),roughness:.55,metalness:.12,vertexColors:true,side:THREE.DoubleSide}),lamp:new THREE.MeshBasicNodeMaterial({color:'#ffe6b4'}),sky:new THREE.MeshBasicNodeMaterial({map:nightMap(),side:THREE.DoubleSide}),glow:new THREE.MeshBasicNodeMaterial({map:glowMap(),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,opacity:.2}),ao:new THREE.MeshBasicNodeMaterial({map:aoMap(),transparent:true,depthWrite:false,opacity:.7}),plaque:new THREE.MeshToonNodeMaterial({map:plaqueMap(),gradientMap:ramp,vertexColors:true})};
- const ceilingTextures=await Promise.all(['diff','nor_gl'].map(kind=>new THREE.TextureLoader().loadAsync('/textures/ceiling/paneled-'+kind+'.webp')));
+ const ceilingTextures=await Promise.all(['diff','nor_gl'].map(kind=>texLoader.loadAsync('/textures/ceiling/paneled-'+kind+'.webp')));
  for(const tex of ceilingTextures){tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1.5,2);tex.anisotropy=4;}
  ceilingTextures[0].colorSpace=THREE.SRGBColorSpace;
  mats.ceiling.map=ceilingTextures[0];mats.ceiling.colorNode=texture(ceilingTextures[0]).rgb.mul(2);mats.ceiling.normalMap=ceilingTextures[1];mats.ceiling.normalScale=new THREE.Vector2(.65,.65);

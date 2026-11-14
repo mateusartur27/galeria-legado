@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { ktx2Loader } from './Ktx.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, float } from 'three/tsl';
@@ -166,7 +166,7 @@ export class CharacterSets {
 	}
 	async load() {
 		const loader = new GLTFLoader().setMeshoptDecoder( MeshoptDecoder )
-		if(this.renderer) loader.setKTX2Loader(new KTX2Loader().setTranscoderPath('/basis/').detectSupport(this.renderer))
+		if(this.renderer) loader.setKTX2Loader(ktx2Loader.detectSupport(this.renderer))
 		for ( const e of this.entries ) {
 			const def = e.character
 			// sala de época fechada (piso, paredes, abóbada, móveis) + placa na entrada

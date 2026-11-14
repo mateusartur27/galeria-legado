@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { texLoader, ktx2Loader } from './Ktx.js';
 import { texture, vec3, vec2, vec4, float, mix, smoothstep, step, uniform, positionLocal, cameraPosition, modelWorldMatrixInverse } from 'three/tsl';
 
 // ---------------------------------------------------------------------------------------------
@@ -161,10 +162,10 @@ function bookcase(wood, books, { x, z, w, h, depth = .42, seed = 3, shelves = 6 
 // ---------- carga e montagem ----------
 const gltfCache = new Map()
 export async function loadModel(id) {
-	if (!gltfCache.has(id)) gltfCache.set(id, new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(id.startsWith('/') ? id : `/models/set/${id}.glb`).then(g => g.scene).catch(err => { console.warn('asset ausente', id, err.message); return null }))
+	if (!gltfCache.has(id)) gltfCache.set(id, new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setKTX2Loader(ktx2Loader).loadAsync(id.startsWith('/') ? id : `/models/set/${id}.glb`).then(g => g.scene).catch(err => { console.warn('asset ausente', id, err.message); return null }))
 	return gltfCache.get(id)
 }
-export const texLoader = new THREE.TextureLoader(), texCache = new Map()
+export { texLoader }; export const texCache = new Map()
 export function polyTex(name, kind, tile, w, h, srgb) { // clone com repetição própria
 	const key = `${name}-${kind}`
 	
