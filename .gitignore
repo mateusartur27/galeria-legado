@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+# material de trabalho (fontes originais, versões antigas, capturas de tela, logs)
+asset-source/
+versions/
+/*.png
+*.log
+validation*.json
+.DS_Store

@@ -1,0 +1,21 @@
+import {createRequire} from 'node:module';
+import fs from 'node:fs/promises';
+const sharp=createRequire(import.meta.url)('D:/threejs-lab/tools/node_modules/sharp');
+const root='D:/ProjectGames/galeria-legado';
+await fs.mkdir(root+'/public/textures/ceiling',{recursive:true});
+for(const [kind,size]of [['diff',1024],['nor_gl',512]])await sharp(`${root}/asset-source/ceiling/textures/dark_paneled_wood/dark_paneled_wood_${kind}_1k.jpg`).resize(size).webp({quality:90}).toFile(`${root}/public/textures/ceiling/paneled-${kind}.webp`);
+await fs.mkdir(root+'/versions/before-matte-ceiling',{recursive:true});
+for(const name of ['Gallery.js','TimberRoof.js'])await fs.copyFile(`${root}/src/gallery/${name}`,`${root}/versions/before-matte-ceiling/${name}`);
+let code=await fs.readFile(root+'/src/gallery/TimberRoof.js','utf8');
+code=code.replace("new THREE.MeshStandardNodeMaterial({color:'#c6a27c'","new THREE.MeshPhysicalNodeMaterial({color:'#c6a27c'").replace('roughnessMap:src.roughnessMap,roughness:.88,metalness:0','roughnessMap:null,roughness:1,metalness:0,specularIntensity:.08,clearcoat:0,envMapIntensity:.12').replace('new THREE.Vector2(.65,.65)','new THREE.Vector2(.4,.4)').replace('vec3(.18,.13,.08)','vec3(.025,.018,.01)');
+await fs.writeFile(root+'/src/gallery/TimberRoof.js',code);
+code=await fs.readFile(root+'/src/gallery/Gallery.js','utf8');
+code=code.replace("ceiling:toon('#263346')","ceiling:new THREE.MeshPhysicalNodeMaterial({color:'#e4cfb6',roughness:.94,metalness:0,specularIntensity:.12,clearcoat:0,envMapIntensity:.18,vertexColors:true})");
+code=code.replace(' mats.leaf.side=THREE.DoubleSide;',` const ceilingTextures=await Promise.all(['diff','nor_gl'].map(kind=>new THREE.TextureLoader().loadAsync('/textures/ceiling/paneled-'+kind+'.webp')));
+ for(const tex of ceilingTextures){tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1.5,2);tex.anisotropy=4;}
+ ceilingTextures[0].colorSpace=THREE.SRGBColorSpace;
+ mats.ceiling.map=ceilingTextures[0];mats.ceiling.normalMap=ceilingTextures[1];mats.ceiling.normalScale=new THREE.Vector2(.65,.65);
+ mats.leaf.side=THREE.DoubleSide;`);
+code=code.replace("if(key==='wood'||key==='ceiling'){","if(key==='wood'){");
+await fs.writeFile(root+'/src/gallery/Gallery.js',code);
+console.log('Vigas foscas e forro com textura PBR de painéis prontos.');
