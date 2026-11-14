@@ -83,7 +83,7 @@ async function main(){
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
- state.camX=-.3;state.eye=2.15;
+ state.camX=tourMode?0:-.3;state.eye=2.15;
  if(parked){Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10});sun.shadow.camera.updateProjectionMatrix();}
  if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||2.8);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
  gallery.update(state.distance);
@@ -105,22 +105,25 @@ async function main(){
  const maxX=Math.max(6.3,...sets.entries.map(e=>e.character.maxX??6.3));const nicheOpen=(x,dist)=>{if(Math.abs(x)<4.2)return true;for(const e of sets.entries){if(Math.sign(x)!==e.side)continue;const z=dist-e.logical*BAY_LENGTH+(e.side===1?-BAY_LENGTH/2:0);if(Math.abs(z)<2.3&&Math.abs(x)<(e.room?.walkMaxX?e.room.walkMaxX():(e.character.maxX??6.3)))return true;}return false;};
  const moveBy=(dx,dz)=>{const nx=state.camX+dx,nd=Math.max(0,state.distance-dz);if(nicheOpen(nx,state.distance))state.camX=THREE.MathUtils.clamp(nx,-maxX,maxX);if(nicheOpen(state.camX,nd))state.distance=nd;};
  // Roteiro do passeio: cruza o corredor; perto de um nicho desacelera, vira a cabeça para ele, se aproxima, fica ~4 s olhando e segue; o próximo nicho (do outro lado) repete.
- const tour={dwell:0,focus:0,done:new Set()};
+ const tour={dwell:0,focus:0,aim:0,phase:0,done:new Set()};
  const tourStep=dt=>{
-  // alvo = próximo personagem ainda não visitado, à frente (z do mundo negativo) — posição real do personagem dentro do nicho
+  // alvo = próximo personagem ainda não visitado, à frente (z do mundo negativo). Fase 0: para e olha a PAREDE antes do nicho; fase 1: vira para o personagem.
   let best=null,bz=1e9,tx=0,tz=0;
   for(const e of sets.entries){if(e.worldZ===undefined||!e.ready||tour.done.has(e.logical))continue;
    const st=e.character.stand,ax=e.side*NICHE_X+(e.side===-1?st.z:-st.z),az=e.worldZ+(e.side===-1?-st.x:st.x);
    if(az>1.5)continue;if(-az<bz){bz=-az;best=e;tx=ax;tz=az;}}
+  if(best&&tour.cur!==best.logical){tour.cur=best.logical;tour.phase=0;tour.dwell=0;}
   const ss=THREE.MathUtils.smoothstep;let v=1.5,focus=0;
-  if(best&&bz<10){focus=1-ss(bz,3.5,10);v=1.5*(.25+.75*ss(bz,.6,5));if(bz<.5){tour.dwell+=dt;v=0;if(tour.dwell>4){tour.done.add(best.logical);tour.dwell=0;}}}
+  if(best&&bz<12){const stop=tour.phase===0?3.4:.4,d=bz-stop;focus=1-ss(bz,4,12);v=1.5*(.25+.75*ss(d,.1,4));
+   if(d<.25){tour.dwell+=dt;v=0;if(tour.phase===0&&tour.dwell>2.6){tour.phase=1;tour.dwell=0;}else if(tour.phase===1&&tour.dwell>4){tour.done.add(best.logical);tour.dwell=0;}}}
   state.distance+=dt*v*state.speed;
-  const k=1-Math.exp(-dt*2.5);tour.focus+=(focus-tour.focus)*k;
+  const k=1-Math.exp(-dt*2.5);tour.focus+=(focus-tour.focus)*k;tour.aim+=(tour.phase-tour.aim)*(1-Math.exp(-dt*1.6));
   const side=best?best.side:0;
-  state.camX+=((-.3)+(side*2.8+.3)*tour.focus-state.camX)*(1-Math.exp(-dt*2));
+  state.camX+=(side*(1.1+1.7*tour.aim)*tour.focus-state.camX)*(1-Math.exp(-dt*2));
   state.eye+=((2.15-.45*tour.focus)-state.eye)*(1-Math.exp(-dt*2));
-  // mira no centro do corpo do personagem (centralizado na tela)
-  if(best){const dx=tx-state.camX,dz=tz,h=Math.hypot(dx,dz);state.targetYaw=Math.atan2(-dx,-dz)*tour.focus;state.targetPitch=(Math.atan2(1.1-state.eye,h)-.015)*tour.focus;}else{state.targetYaw*=1-k;state.targetPitch*=1-k;}
+  // mira: parede ao lado do nicho (1,8 m de altura) → corpo do personagem; ambos centralizados na tela
+  if(best){const wx=best.side*4.6,wz=tz+3.4,px=wx+(tx-wx)*tour.aim,pz=wz+(tz-wz)*tour.aim,py=1.8+(1.1-1.8)*tour.aim;
+   const dx=px-state.camX,h=Math.hypot(dx,pz);state.targetYaw=Math.atan2(-dx,-pz)*tour.focus;state.targetPitch=Math.atan2(py-state.eye,h)*tour.focus;}else{state.targetYaw*=1-k;state.targetPitch*=1-k;}
  };
  engine.setLoop((dt,t)=>{
   if(document.hidden)return;
@@ -142,8 +145,8 @@ async function main(){
   const blend=1-Math.exp(-dt*5);state.yaw+=(state.targetYaw-state.yaw)*blend;state.pitch+=(state.targetPitch-state.pitch)*blend;
   // Pause the sway clock itself, preserving position on both pause and resume.
   if(!state.paused&&!reduced)walkTime+=dt;
-  camera.position.x=state.camX+(!reduced&&!parked?Math.sin(walkTime*.23)*.07:0);camera.position.y=state.eye+(!reduced?Math.sin(walkTime*.4)*.015:0);
-  camera.rotation.set(.015+state.pitch,state.yaw-.015,0,'YXZ');
+  camera.position.x=state.camX+(!reduced&&!parked?Math.sin(walkTime*.23)*.07*(tourMode?0:1):0);camera.position.y=state.eye+(!reduced?Math.sin(walkTime*.4)*.015:0);
+  camera.rotation.set((tourMode?0:.015)+state.pitch,state.yaw-(tourMode?0:.015),0,'YXZ');
   if(window.__camOverride){const o=window.__camOverride;camera.position.set(...o.pos);camera.lookAt(...o.at);if(o.fov&&camera.fov!==o.fov){camera.fov=o.fov;camera.updateProjectionMatrix();}} // depuração: câmera livre
   window.__game?.rigEditor?.updateOverlay();window.__game?.toolEditor?.update();
   sets.cull(camera);culler.apply(camera);pipeline.render();
