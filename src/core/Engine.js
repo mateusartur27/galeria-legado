@@ -81,12 +81,12 @@ export class Engine {
 	// Resolução adaptativa por janela de 1.5 s
 	track( cpuMs, dt ) {
 
-		this.frameTimes.push( dt * 1000 )
+		this.frameTimes.push( dt * 1000 ); this.wCpu = ( this.wCpu ?? 0 ) + cpuMs; this.wMax = Math.max( this.wMax ?? 0, dt * 1000 ); this.wCpuMax = Math.max( this.wCpuMax ?? 0, cpuMs )
 		const now = performance.now()
 		if ( now - this.windowStart < 1500 ) return
 		const avg = this.frameTimes.reduce( ( a, b ) => a + b, 0 ) / this.frameTimes.length
 		this.fps = 1000 / avg
-		this.frameMs = avg
+		this.frameMs = avg; this.cpuAvg = this.wCpu / this.frameTimes.length; this.worstMs = this.wMax; this.cpuWorst = this.wCpuMax; this.wCpu = 0; this.wMax = 0; this.wCpuMax = 0
 		this.frameTimes.length = 0
 		this.windowStart = now
 		if ( ! this.adaptive ) return

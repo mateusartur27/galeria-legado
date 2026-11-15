@@ -8,6 +8,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, float } from 'three/tsl';
 import { MachadoWriting } from './MachadoWriting.js';
 import { AleijadinhoWorking } from './AleijadinhoWorking.js';
+import { ReboucasDrawing } from './ReboucasDrawing.js';
 import { SavedRigCalibration } from './SavedRigCalibration.js';
 import { repairTorsoSkinWeights } from './TorsoSkinWeights.js';
 import { buildStudyRoom } from './PeriodRoom.js';
@@ -142,7 +143,7 @@ const ALEIJADINHO = {
 // -------- André Rebouças: cais das Docas D. Pedro II, Rio de Janeiro, aurora de c. 1873 --------
 const REBOUCAS = {
 	id: 'reboucas', name: 'André Rebouças', dates: '1838 · 1898', role: 'Engenheiro e abolicionista',
-	model: null, height: 1.5, stand: { x: 0.45, z: 0.55 }, facing: 0.0, room: buildReboucasRoom, lightScale: .12, openBack: true, maxX: 44,
+	model: '/models/characters/reboucas-desenhando.glb', height: 1.7, stand: { x: 0.45, z: 0.55 }, facing: 0.0, room: buildReboucasRoom, lightScale: .12, openBack: true, maxX: 44,
 }
 // Escurecimento da pele de cada personagem (a pele vem pintada na textura; o shader escurece só os pixels de pele, mantendo detalhe).
 export const SKIN = { aleijadinho: .78 } // 1 = sem mudança
@@ -154,19 +155,19 @@ export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS ]
 //   - 2 ou mais: alternam esquerda/direita a cada baia (0: startSide, 1: oposto, 2: startSide…), assim o corredor fica
 //     equilibrado; com 2 pessoas cada uma ocupa um lado.
 // Retorna [{ character, logical, side }]. `logical` é a baia onde o nicho está (a 1ª pessoa fica na baia `first`).
-export function layout( people = 1, startSide = -1, first = 1, focus = null, only = null ) {
+export function layout( people = 1, startSide = -1, first = 1, focus = null, only = null, pattern = null ) {
 	const pool = only ? CATALOG.filter( c => only.includes( c.id ) ) : CATALOG // `only`: só estes personagens (o site publicado só tem o Machado: ele repete em todos os nichos)
 	const order = focus && pool.some( c => c.id === focus ) ? [ pool.find( c => c.id === focus ), ...pool.filter( c => c.id !== focus ) ] : pool // `focus`: personagem que vai primeiro (link ?set=)
-	return Array.from( { length: people }, ( _, i ) => ( { character: order[ i % order.length ], logical: first + i, side: people === 1 ? startSide : ( i % 2 === 0 ? startSide : - startSide ) } ) )
+	return Array.from( { length: people }, ( _, i ) => ( { character: pattern ? CATALOG.find( c => c.id === pattern[ i % pattern.length ] ) ?? order[ i % order.length ] : order[ i % order.length ], logical: first + i, side: people === 1 ? startSide : ( i % 2 === 0 ? startSide : - startSide ) } ) )
 }
 
 const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sp = new THREE.Sphere()
 
 export class CharacterSets {
-	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, loop = false } = {} ) {
+	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18 } = {} ) {
 		// loop = passeio infinito: as `people` salas formam um anel; quando uma fica para trás, pula `people` baias adiante (já escondida na névoa) e o passeio repete.
-		this.loop = loop; this.period = people; this.range = people * BAY_LENGTH / 2 - 3; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
-		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus, only ).map( e => ( { ...e, base: e.logical, group: new THREE.Group(), ready: false } ) )
+		this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / 2 - 3 ); this.nearDist = nearDist; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
+		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus, only, pattern ).map( e => ( { ...e, base: e.logical, group: new THREE.Group(), ready: false } ) )
 		this.lights = []; this.statics = new Map(); this.characterMaterials = new Map(); this.dimensions = {}
 		this.propMat = new THREE.MeshStandardNodeMaterial( { vertexColors: true, roughness: .72, metalness: .05 } )
 		this.propMat.emissiveNode = vertexColor().mul( vec3( .2, .15, .1 ) ).mul( galleryBrightness )
@@ -190,9 +191,9 @@ export class CharacterSets {
 			}
 			// personagem
 			try {
-				if ( def.model ) { let src = modelCache.get( def.model ); const first = ! src; if ( first ) { src = await loader.loadAsync( def.model ); modelCache.set( def.model, src ) }
-					const gltf = first ? src : { ...src, scene: SkeletonUtils.clone( src.scene ) }
-					this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();} }
+				if ( def.model ) { let src = modelCache.get( def.model ); const first = ! src; if ( first ) { src = await loader.loadAsync( def.model ); modelCache.set( def.model, { ...src, scene: SkeletonUtils.clone( src.scene ) } ) /* molde intacto: o 1º personagem anima/calibra os ossos de src, os clones saem do molde */ }
+					const gltf = first ? src : { ...src, scene: SkeletonUtils.clone( src.scene ) } // clona do molde, sem tocar nele
+					this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();await e.animation.toolEditor.load();} }
 			} catch ( err ) { throw new Error(`Personagem ${def.id}: ${err.message}`) }
 			e.ready = true
 		}
@@ -225,6 +226,12 @@ export class CharacterSets {
 		if ( def.id === 'aleijadinho' ) { // escultor no andaime: rig + animação do Mixamo, ferramentas amarradas aos braços
 			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'aleijadinho', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
 			e.animation = new AleijadinhoWorking( e, gltf, e.room.scaf, e.room.workPose )
+			this.dimensions[ def.id ] = { height: def.height, animated: true }
+			return
+		}
+		if ( def.id === 'reboucas' ) { // engenheiro sentado no banquinho, desenhando na prancheta
+			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'reboucas', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
+			e.animation = new ReboucasDrawing( e, gltf, e.room.seat, def.height )
 			this.dimensions[ def.id ] = { height: def.height, animated: true }
 			return
 		}
@@ -263,7 +270,7 @@ export class CharacterSets {
 			const x = e.side * NICHE_X, d = Math.hypot( x - camera.position.x, e.worldZ - camera.position.z )
 			_sp.center.set( x, 1.5, e.worldZ ); _sp.radius = 5.5
 			e.group.visible = e.ready && Math.abs( e.worldZ ) < this.range && ( d < 6 || _fr.intersectsSphere( _sp ) )
-			e.near = e.group.visible && d < 18
+			e.near = e.group.visible && d < this.nearDist
 			if ( e.animation?.holder ) e.animation.holder.visible = e.near
 			if ( e.group.visible && d < bd ) { bd = d; best = e }
 		}

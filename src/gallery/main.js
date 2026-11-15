@@ -75,11 +75,11 @@ async function main(){
  // Passeio automático (padrão do site publicado, ou ?tour): a câmera anda sozinha, vira para cada nicho, para um instante e segue; as salas formam um anel que se repete.
  const tourMode=!params.has('set')&&!params.has('rig')&&(import.meta.env.PROD||params.has('tour'));
  if(tourMode){state.paused=false;state.exploring=false;document.body.classList.add('tour');const st=document.createElement('style');st.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint{display:none!important}body.tour #intro{transition:opacity 1.6s;}body.tour.tour-clear #intro{opacity:0;pointer-events:none}';document.head.appendChild(st);setTimeout(()=>document.body.classList.add('tour-clear'),7000);}
- const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?5:8):1)));
+ const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:9):1)));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
  const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):null;
- const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado']:null,loop:tourMode});gallery.sets=sets;
+ const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho','machado']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
@@ -94,7 +94,7 @@ async function main(){
  // Celular já abre no nível 2 (sem sombras, sem MSAA, sem luzes extras): medido num aparelho real, nível 0 = 20 fps e nível 2 = 56 fps.
  if(low){engine.level=2;engine.settings.degrade(2);}
  // ?stats: contador na tela (motor, fps, resolução, nível) para diagnosticar no celular.
- if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
+ if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`pior quadro ${Math.round(engine.worstMs??0)} ms · CPU ${(engine.cpuAvg??0).toFixed(1)} (pior ${Math.round(engine.cpuWorst??0)}) ms\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
  progress(62,'Preparando o percurso…');
  // (partículas de poeira removidas: custavam draw call/blend e não faziam falta)
  camera.rotation.order='YXZ';camera.rotation.y=-.015;camera.rotation.x=.015;
@@ -191,12 +191,12 @@ async function main(){
   desk.select(sel.value);sync();setOpen(true);document.body.appendChild(panel);
  };if(parked)setTimeout(()=>notice(mobile?'Arraste para olhar · pinça com dois dedos para avançar':'W A S D andar · arraste para olhar · roda do mouse avança · Shift corre',7000),600);const hideLoading=()=>$('loading').classList.add('done');if(!parked&&!tourMode)setTimeout(hideLoading,160);
  // Pré-aquecimento (atrás da tela de carregamento): compila todos os shaders e desenha cada sala uma vez para enviar texturas/geometrias à GPU; assim o passeio não engasga ao revelar uma sala nova.
- const warmUp=async()=>{progress(90,'Preparando o passeio…');const nf=()=>new Promise(r=>requestAnimationFrame(r));state.warming=true;
+ const warmUp=async()=>{(window.__marks??=[]).push(['carregado',Math.round(performance.now())]);progress(90,'Preparando o passeio…');const nf=()=>new Promise(r=>requestAnimationFrame(r));state.warming=true;
   for(const e of sets.entries){e.group.visible=true;if(e.animation?.holder)e.animation.holder.visible=true;}
   await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);
-  const rot=camera.rotation.clone(),pos=camera.position.clone();
+  (window.__marks??=[]).push(['shaders compilados',Math.round(performance.now())]);const rot=camera.rotation.clone(),pos=camera.position.clone();
   for(const e of sets.entries){camera.position.set(e.side*2.8,1.7,e.worldZ+(e.side===-1?-.5:.5));camera.rotation.set(0,-e.side*Math.PI/2,0,'YXZ');for(let i=0;i<2;i++){pipeline.render();await nf();}progress(90+Math.round(8*(sets.entries.indexOf(e)+1)/sets.entries.length),'Preparando o passeio…');}
-  camera.position.copy(pos);camera.rotation.copy(rot);state.warming=false;progress(100,'Bem-vindo ao Legado');};
+  camera.position.copy(pos);camera.rotation.copy(rot);state.warming=false;(window.__marks??=[]).push(['pronto',Math.round(performance.now())]);progress(100,'Bem-vindo ao Legado');};
  const curated=new CuratedAssets(gallery);gallery.curated=curated;
  const timber=new TimberRoof(gallery);gallery.timber=timber;
  const hangingPlants=new HangingPlants(gallery);gallery.hangingPlants=hangingPlants;
