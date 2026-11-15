@@ -58,7 +58,7 @@ async function main(){
  }
  const lampBase=materials.lamp.color.clone(),pendantBase=materials.chandelier.color.clone();
  const lightControls=createLightingControls({
-  onOpen:()=>{if(tourMode)return;state.exploring=true;document.body.classList.add('exploring');},
+  onOpen:()=>{if(lockInput)return;state.exploring=true;document.body.classList.add('exploring');},
   onChange:({brightness,lightHeight,roofBrightness})=>{
    galleryRoofBrightness.value=roofBrightness;
    galleryBrightness.value=brightness;galleryLightHeight.value=lightHeight;
@@ -74,6 +74,8 @@ async function main(){
  // Sets de personagens: ?people=N (quantas pessoas), ?side=left|right (lado da 1ª), ?set=machado (abre parado diante do set).
  // Passeio automático (padrão do site publicado, ou ?tour): a câmera anda sozinha, vira para cada nicho, para um instante e segue; as salas formam um anel que se repete.
  const tourMode=!params.has('set')&&!params.has('rig')&&(import.meta.env.PROD||params.has('tour'));
+ const lockInput=tourMode||(import.meta.env.PROD&&params.has('set')&&!params.has('editar')&&!params.has('live')&&!params.has('rig'));
+ if(lockInput){document.body.classList.add('tour');const st0=document.createElement('style');st0.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint,body.tour #desk-panel,body.tour #intro{display:none!important}';document.head.appendChild(st0);}
  if(tourMode){state.paused=false;state.exploring=false;document.body.classList.add('tour');const st=document.createElement('style');st.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint{display:none!important}body.tour #intro{transition:opacity 1.6s;}body.tour.tour-clear #intro{opacity:0;pointer-events:none}';document.head.appendChild(st);setTimeout(()=>document.body.classList.add('tour-clear'),7000);}
  const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:8):1)));
  const startSide=params.get('side')==='right'?1:-1;
@@ -95,7 +97,7 @@ async function main(){
  if(low){engine.level=2;engine.settings.degrade(2);}
  // ?stats: contador na tela (motor, fps, resolução, nível) para diagnosticar no celular.
  const PR=window.__prof={};let pa=0;
- if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`animação ${(PR.animate??0).toFixed(1)} · cull ${(PR.cull??0).toFixed(1)} · desenho ${(PR.render??0).toFixed(1)} ms\n+pior quadro ${Math.round(engine.worstMs??0)} ms · CPU ${(engine.cpuAvg??0).toFixed(1)} (pior ${Math.round(engine.cpuWorst??0)}) ms\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
+ if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`animação ${(PR.animate??0).toFixed(1)} · cull ${(PR.cull??0).toFixed(1)} · desenho ${(PR.render??0).toFixed(1)} ms\n`+`pior quadro ${Math.round(engine.worstMs??0)} ms · CPU ${(engine.cpuAvg??0).toFixed(1)} (pior ${Math.round(engine.cpuWorst??0)}) ms\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
  progress(62,'Preparando o percurso…');
  // (partículas de poeira removidas: custavam draw call/blend e não faziam falta)
  camera.rotation.order='YXZ';camera.rotation.y=-.015;camera.rotation.x=.015;
@@ -106,27 +108,28 @@ async function main(){
  const maxX=Math.max(6.3,...sets.entries.map(e=>e.character.maxX??6.3));const nicheOpen=(x,dist)=>{if(Math.abs(x)<4.2)return true;for(const e of sets.entries){if(Math.sign(x)!==e.side)continue;const z=dist-e.logical*BAY_LENGTH+(e.side===1?-BAY_LENGTH/2:0);if(Math.abs(z)<2.3&&Math.abs(x)<(e.room?.walkMaxX?e.room.walkMaxX():(e.character.maxX??6.3)))return true;}return false;};
  const moveBy=(dx,dz)=>{const nx=state.camX+dx,nd=Math.max(0,state.distance-dz);if(nicheOpen(nx,state.distance))state.camX=THREE.MathUtils.clamp(nx,-maxX,maxX);if(nicheOpen(state.camX,nd))state.distance=nd;};
  // Roteiro do passeio: cruza o corredor; perto de um nicho desacelera, vira a cabeça para ele, se aproxima, fica ~4 s olhando e segue; o próximo nicho (do outro lado) repete.
- const tour={dwell:0,focus:0,aim:0,phase:0,done:new Set()};
+ const _av=new THREE.Vector3();const aimPoint=e=>{e.group.updateMatrixWorld(true);const a=e.character.aim;if(a)_av.set(a.x,0,a.z),e.group.localToWorld(_av);else{(e.character3d??e.animation?.holder??e.group).getWorldPosition(_av);}return{x:_av.x,z:_av.z,y:a?.y??1.1};};
+ const tour={dwell:0,focus:0,aim:0,phase:0,done:new Set([0])};
  const tourStep=dt=>{
   // alvo = próximo personagem ainda não visitado, à frente (z do mundo negativo). Fase 0: para e olha a PAREDE antes do nicho; fase 1: vira para o personagem.
-  let best=null,bz=1e9,tx=0,tz=0;
+  let best=null,bz=1e9,tx=0,tz=0,ty=1.1;
   for(const e of sets.entries){if(e.worldZ===undefined||!e.ready||tour.done.has(e.logical))continue;
-   const st=e.character.stand,ax=e.side*NICHE_X+(e.side===-1?st.z:-st.z),az=e.worldZ+(e.side===-1?-st.x:st.x);
-   if(az>1.5)continue;if(-az<bz){bz=-az;best=e;tx=ax;tz=az;}}
-  if(best&&tour.cur!==best.logical){tour.cur=best.logical;tour.phase=0;tour.dwell=0;}
+   const w=aimPoint(e),ax=w.x,az=w.z;
+   if(az>1.5)continue;if(-az<bz){bz=-az;best=e;tx=ax;tz=az;ty=w.y;}}
+  if(best&&tour.cur!==best.logical){tour.cur=best.logical;tour.curChar=best.character.id;tour.phase=0;tour.dwell=0;}
   const ss=THREE.MathUtils.smoothstep;let v=1.5,focus=0;
   if(best&&bz<12){const stop=tour.phase===0?3.4:.4,d=bz-stop;focus=1-ss(bz,4,12);v=1.5*(.25+.75*ss(d,.1,4));
-   if(d<.25){tour.dwell+=dt;v=0;if(tour.phase===0&&tour.dwell>2.6){tour.phase=1;tour.dwell=0;}else if(tour.phase===1&&tour.dwell>4){tour.done.add(best.logical);tour.dwell=0;}}}
+   if(d<.25){tour.dwell+=dt;v=0;if(tour.phase===0&&tour.dwell>2.6){tour.phase=1;tour.dwell=0;}else if(tour.phase===1&&tour.dwell>4){tour.done.add(best.logical);state.tourDone=tour.done.size;tour.dwell=0;}}}
   state.distance+=dt*v*state.speed;
   const k=1-Math.exp(-dt*2.5);tour.focus+=(focus-tour.focus)*k;tour.aim+=(tour.phase-tour.aim)*(1-Math.exp(-dt*1.6));
   const side=best?best.side:0;
   state.camX+=(side*(1.1+1.7*tour.aim)*tour.focus-state.camX)*(1-Math.exp(-dt*2));
   state.eye+=((2.15-.45*tour.focus)-state.eye)*(1-Math.exp(-dt*2));
   // mira: parede ao lado do nicho (1,8 m de altura) → corpo do personagem; ambos centralizados na tela
-  if(best){const wx=best.side*4.6,wz=tz+3.4,px=wx+(tx-wx)*tour.aim,pz=wz+(tz-wz)*tour.aim,py=1.8+(1.1-1.8)*tour.aim;
+  if(best){const wx=best.side*4.6,wz=tz+3.4,px=wx+(tx-wx)*tour.aim,pz=wz+(tz-wz)*tour.aim,py=1.8+(ty-1.8)*tour.aim;
    const dx=px-state.camX,h=Math.hypot(dx,pz);state.targetYaw=Math.atan2(-dx,-pz)*tour.focus;state.targetPitch=Math.atan2(py-state.eye,h)*tour.focus;}else{state.targetYaw*=1-k;state.targetPitch*=1-k;}
  };
- engine.setLoop((dt,t)=>{
+ const frame=(dt,t)=>{
   if(document.hidden||state.warming)return;
   if(tourMode&&!state.exploring&&!state.paused)tourStep(dt);else if(!state.paused&&!state.rigEditing)state.distance+=dt*(state.exploring ? .95 : .42)*state.speed;
   // Caminhada livre (W/S frente-trás, A/D laterais, Shift corre): usa a câmera dentro da galeria sem retomar o passeio automático.
@@ -143,6 +146,7 @@ async function main(){
    setLights.forEach((l,i)=>{const e=near[i];if(!e){l.intensity=0;return;}const d=Math.abs(e.worldZ);l.position.set(e.side*(NICHE_X-.5),3.4,e.worldZ+(i?.7:-.7));l.intensity=10*lightControls.settings.brightness*(1-THREE.MathUtils.smoothstep(d,14,30));});}
   const lampPhase=state.distance%BAY_LENGTH;
   chandelierLights.forEach((light,i)=>{const z=lampPhase-i*BAY_LENGTH;light.position.set(0,lightControls.settings.lightHeight,z);light.intensity=68*lightControls.settings.brightness*(1-THREE.MathUtils.smoothstep(Math.abs(z),8,12));});
+  if(parked&&lockInput){state.targetYaw=-parked.side*Math.PI/2+Math.sin(t*.22)*.05;state.targetPitch=-.04+Math.sin(t*.17)*.012;state.camX=parked.side*2.8+Math.sin(t*.13)*.3;} // cena parada: só uma deriva suave de câmera
   const blend=1-Math.exp(-dt*5);state.yaw+=(state.targetYaw-state.yaw)*blend;state.pitch+=(state.targetPitch-state.pitch)*blend;
   // Pause the sway clock itself, preserving position on both pause and resume.
   if(!state.paused&&!reduced)walkTime+=dt;
@@ -152,17 +156,20 @@ async function main(){
   window.__game?.rigEditor?.updateOverlay();window.__game?.toolEditor?.update();
   pa=performance.now();sets.cull(camera);culler.apply(camera);const pb=performance.now();PR.cull=(PR.cull??0)*.9+(pb-pa)*.1;pipeline.render();PR.render=(PR.render??0)*.9+(performance.now()-pb)*.1;
   if(t-lastUi>.4){$('distance').textContent=`${Math.floor(state.distance).toString().padStart(3,'0')} m`;lastUi=t;}
- });
+ };
+ // ?record: gravação offline do passeio — cada chamada a __rec.step avança 1 quadro com passo fixo (determinístico) e devolve o que está em cena
+ let recT=0;const recording=params.has('record');if(recording){window.__rec={step:dt=>{recT+=dt;frame(dt,recT);const best=sets.entries.filter(e=>e.worldZ!==undefined&&e.ready).sort((a,b)=>Math.abs(a.worldZ)-Math.abs(b.worldZ))[0];return{phase:tour.phase,dwell:tour.dwell,cur:tour.cur,char:tour.curChar,t:recT};}};}else engine.setLoop(frame);
+ if(parked&&lockInput){const back=document.createElement('a');back.href='/';back.textContent='← Voltar';back.style.cssText='position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:30;padding:.8em 1.3em;border-radius:999px;border:1px solid #ffffff55;background:#0d1530aa;color:#fff;font:600 13px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;backdrop-filter:blur(6px)';document.body.appendChild(back);}
  const togglePause=()=>{state.paused=!state.paused;$('pause-icon').textContent=state.paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',state.paused?'Continuar percurso':'Pausar percurso');notice(state.paused?'Percurso pausado':'Seguindo em frente');};
- const enter=()=>{if(tourMode)return;state.exploring=true;document.body.classList.add('exploring');};
+ const enter=()=>{if(lockInput)return;state.exploring=true;document.body.classList.add('exploring');};
  const cinema=()=>{enter();document.body.classList.toggle('cinema');};
  $('enter').onclick=enter;$('pause').onclick=togglePause;$('speed').onclick=()=>{state.speed=state.speed===1?1.6:state.speed===1.6?.6:1;$('speed').textContent=`${state.speed.toLocaleString('pt-BR')}×`;$('speed').setAttribute('aria-label',`Velocidade ${state.speed}`);};
- const backButton=document.createElement('button');backButton.id='look-back';backButton.textContent='↶';backButton.title='Olhar para trás (B)';backButton.setAttribute('aria-label','Olhar para trás');backButton.onclick=()=>{if(tourMode)return;enter();state.targetYaw+=Math.PI;};document.getElementById('lighting-toggle').before(backButton);
+ const backButton=document.createElement('button');backButton.id='look-back';backButton.textContent='↶';backButton.title='Olhar para trás (B)';backButton.setAttribute('aria-label','Olhar para trás');backButton.onclick=()=>{if(lockInput)return;enter();state.targetYaw+=Math.PI;};document.getElementById('lighting-toggle').before(backButton);
  $('cinema').onclick=cinema;$('restore').onclick=cinema;
  $('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{notice('Use a opção de tela cheia do navegador');}};
  addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
- addEventListener('keydown',e=>{if(state.rigEditing||tourMode)return;if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement)return;if(e.target instanceof HTMLButtonElement&&(e.code==='Space'||e.code==='Enter'))return;if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft'].includes(e.code)){keys.add(e.code);if(e.code!=='ShiftLeft'){state.paused=true;$('pause-icon').textContent='▷';enter();}return;}if(e.code==='Space'){e.preventDefault();togglePause();}if(e.code==='KeyH')cinema();if(e.code==='KeyB')state.targetYaw+=Math.PI;if(e.code==='Escape'){document.body.classList.remove('cinema');state.targetYaw=0;state.targetPitch=0;}if(e.code==='ArrowLeft')state.targetYaw+=.12;if(e.code==='ArrowRight')state.targetYaw-=.12;if(e.code==='ArrowUp')state.targetPitch=Math.min(1.45,state.targetPitch+.08);if(e.code==='ArrowDown')state.targetPitch=Math.max(-1.45,state.targetPitch-.08);});
- renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();if(state.rigEditing||tourMode)return;state.paused=true;$('pause-icon').textContent='▷';enter();const f=-e.deltaY*.0022;moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);},{passive:false});
+ addEventListener('keydown',e=>{if(state.rigEditing||lockInput)return;if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement)return;if(e.target instanceof HTMLButtonElement&&(e.code==='Space'||e.code==='Enter'))return;if(['KeyW','KeyA','KeyS','KeyD','ShiftLeft'].includes(e.code)){keys.add(e.code);if(e.code!=='ShiftLeft'){state.paused=true;$('pause-icon').textContent='▷';enter();}return;}if(e.code==='Space'){e.preventDefault();togglePause();}if(e.code==='KeyH')cinema();if(e.code==='KeyB')state.targetYaw+=Math.PI;if(e.code==='Escape'){document.body.classList.remove('cinema');state.targetYaw=0;state.targetPitch=0;}if(e.code==='ArrowLeft')state.targetYaw+=.12;if(e.code==='ArrowRight')state.targetYaw-=.12;if(e.code==='ArrowUp')state.targetPitch=Math.min(1.45,state.targetPitch+.08);if(e.code==='ArrowDown')state.targetPitch=Math.max(-1.45,state.targetPitch-.08);});
+ renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();if(state.rigEditing||lockInput)return;state.paused=true;$('pause-icon').textContent='▷';enter();const f=-e.deltaY*.0022;moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);},{passive:false});
  // Toque/mouse: 1 dedo arrasta para olhar; 2 dedos (pinça) avançam/recuam, como a roda do mouse.
  // Celular em pé: pede para virar na horizontal (a galeria é um panorama largo). Toque em "Tela cheia" tenta travar a orientação (Android); no iPhone só dá para girar o aparelho.
  {const rotate=$('rotate'),portrait=matchMedia('(orientation: portrait)'),touch=matchMedia('(pointer:coarse)').matches;let skipped=false;const upd=()=>{rotate.hidden=!(touch&&portrait.matches&&!skipped);};
@@ -170,8 +177,8 @@ async function main(){
   $('rotate-go').onclick=async()=>{try{await document.documentElement.requestFullscreen({navigationUI:'hide'});}catch{}try{await screen.orientation.lock('landscape');}catch{notice('Gire o celular para a horizontal',3000);}upd();};}
  let dragging=false,px=0,py=0,pinch=0;const pts=new Map();const pinchDist=()=>{const [a,b]=[...pts.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
  renderer.domElement.style.touchAction='none';
- renderer.domElement.addEventListener('pointerdown',e=>{if(state.rigEditing||tourMode)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});renderer.domElement.setPointerCapture(e.pointerId);enter();if(pts.size===2){dragging=false;pinch=pinchDist();}else{dragging=true;px=e.clientX;py=e.clientY;}});
- renderer.domElement.addEventListener('pointermove',e=>{if(state.rigEditing||tourMode)return;const p=pts.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY;}if(pts.size===2){const d=pinchDist(),f=(d-pinch)*.006;pinch=d;state.paused=true;$('pause-icon').textContent='▷';moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);return;}if(!dragging)return;state.targetYaw+=(e.clientX-px)*.0025;state.targetPitch=THREE.MathUtils.clamp(state.targetPitch+(e.clientY-py)*.002,-1.45,1.45);px=e.clientX;py=e.clientY;});
+ renderer.domElement.addEventListener('pointerdown',e=>{if(state.rigEditing||lockInput)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});renderer.domElement.setPointerCapture(e.pointerId);enter();if(pts.size===2){dragging=false;pinch=pinchDist();}else{dragging=true;px=e.clientX;py=e.clientY;}});
+ renderer.domElement.addEventListener('pointermove',e=>{if(state.rigEditing||lockInput)return;const p=pts.get(e.pointerId);if(p){p.x=e.clientX;p.y=e.clientY;}if(pts.size===2){const d=pinchDist(),f=(d-pinch)*.006;pinch=d;state.paused=true;$('pause-icon').textContent='▷';moveBy(-Math.sin(state.yaw)*f,-Math.cos(state.yaw)*f);return;}if(!dragging)return;state.targetYaw+=(e.clientX-px)*.0025;state.targetPitch=THREE.MathUtils.clamp(state.targetPitch+(e.clientY-py)*.002,-1.45,1.45);px=e.clientX;py=e.clientY;});
  const endDrag=e=>{pts.delete(e.pointerId);dragging=false;if(pts.size===1){const [r]=[...pts.values()];px=r.x;py=r.y;dragging=true;}};renderer.domElement.addEventListener('pointerup',endDrag);renderer.domElement.addEventListener('pointercancel',endDrag);renderer.domElement.addEventListener('lostpointercapture',endDrag); if(state.exploring)enter();if(params.has('clean'))document.body.classList.add('cinema');if(state.paused)$('pause-icon').textContent='▷';
  window.__game={clearKeys:()=>keys.clear(),THREE,renderer,engine,scene,camera,gallery,state,pipeline,lightControls,stats:()=>({...gallery.getStats(),plantLoaded:state.plantLoaded,assetsReady:state.assetsReady,assetError:state.assetError,drawCalls:renderer.info.render.drawCalls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,dpr:renderer.getPixelRatio()}),advance:meters=>{state.distance+=meters;gallery.update(state.distance);},pause:()=>{state.paused=true;},look:(yaw,pitch=0)=>{state.targetYaw=yaw;state.targetPitch=pitch;}};
  progress(parked?72:100,parked?'Montando o escritório…':'Bem-vindo ao Legado'); // Painel "Mesa": escolher um objeto em cima da escrivaninha e posicioná-lo (X ao longo da mesa, Z em profundidade, giro). Salva no navegador.

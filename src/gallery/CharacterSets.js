@@ -139,7 +139,7 @@ const MACHADO = {
 // -------- Ateliê do Aleijadinho: casa de pau-a-pique em Vila Rica, fim do séc. XVIII --------
 const ALEIJADINHO = {
 	id: 'aleijadinho', name: 'Aleijadinho', dates: '1738 · 1814', role: 'Escultor e arquiteto do barroco mineiro',
-	model: '/models/characters/aleijadinho-martelando.glb', height: 1.55, stand: { x: 0.45, z: 0.55 }, facing: 0.0, room: buildAleijadinhoRoom, lightScale: .12, openBack: true, maxX: 44,
+	model: '/models/characters/aleijadinho-martelando.glb', height: 1.55, stand: { x: 0.45, z: 0.55 }, facing: 0.0, aim: { x: -.3, z: -.3, y: 1.9 }, room: buildAleijadinhoRoom, lightScale: .12, openBack: true, maxX: 44,
 }
 // -------- André Rebouças: cais das Docas D. Pedro II, Rio de Janeiro, aurora de c. 1873 --------
 const REBOUCAS = {

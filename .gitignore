@@ -8,3 +8,4 @@ versions/
 *.log
 validation*.json
 .DS_Store
+.rec-frames/
