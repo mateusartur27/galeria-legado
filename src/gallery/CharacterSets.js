@@ -9,6 +9,7 @@ import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, flo
 import { MachadoWriting } from './MachadoWriting.js';
 import { AleijadinhoWorking } from './AleijadinhoWorking.js';
 import { ReboucasDrawing } from './ReboucasDrawing.js';
+import { ReboucasObserving } from './ReboucasObserving.js';
 import { SavedRigCalibration } from './SavedRigCalibration.js';
 import { repairTorsoSkinWeights } from './TorsoSkinWeights.js';
 import { buildStudyRoom } from './PeriodRoom.js';
@@ -161,12 +162,12 @@ export function layout( people = 1, startSide = -1, first = 1, focus = null, onl
 	return Array.from( { length: people }, ( _, i ) => ( { character: pattern ? CATALOG.find( c => c.id === pattern[ i % pattern.length ] ) ?? order[ i % order.length ] : order[ i % order.length ], logical: first + i, side: people === 1 ? startSide : ( i % 2 === 0 ? startSide : - startSide ) } ) )
 }
 
-const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sp = new THREE.Sphere()
+const _bx = new THREE.Box3(), _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sp = new THREE.Sphere()
 
 export class CharacterSets {
-	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18, lodDist = 1e9 } = {} ) {
+	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18, lodDist = 1e9, minRadius = 0 } = {} ) {
 		// loop = passeio infinito: as `people` salas formam um anel; quando uma fica para trás, pula `people` baias adiante (já escondida na névoa) e o passeio repete.
-		this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / 2 - 3 ); this.nearDist = nearDist; this.lodDist = lodDist; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
+		this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / 2 - 3 ); this.nearDist = nearDist; this.lodDist = lodDist; this.minRadius = minRadius; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
 		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus, only, pattern ).map( e => ( { ...e, base: e.logical, group: new THREE.Group(), ready: false } ) )
 		this.lights = []; this.statics = new Map(); this.characterMaterials = new Map(); this.dimensions = {}
 		this.propMat = new THREE.MeshStandardNodeMaterial( { vertexColors: true, roughness: .72, metalness: .05 } )
@@ -202,7 +203,7 @@ export class CharacterSets {
 	buildLod( e ) {
 		e.group.updateMatrixWorld( true ); e.small = []
 		const box = new THREE.Box3(), sph = new THREE.Sphere()
-		e.group.traverse( o => { if ( ! o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || ! o.visible ) return; box.setFromObject( o ); box.getBoundingSphere( sph ); if ( sph.radius < .55 ) e.small.push( o ) } )
+		e.group.traverse( o => { if ( ! o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || ! o.visible ) return; box.setFromObject( o ); box.getBoundingSphere( sph ); if ( sph.radius < this.minRadius ) { o.visible = false; return } /* detalhes minúsculos: invisíveis no celular */ if ( sph.radius < 1.4 ) { o.userData.lodR = sph.radius; e.small.push( o ) } } )
 	}
 	material( src, id = null, meshName = '' ) {
 		if ( this.characterMaterials.has( src ) ) return this.characterMaterials.get( src )
@@ -237,7 +238,7 @@ export class CharacterSets {
 		}
 		if ( def.id === 'reboucas' ) { // engenheiro sentado no banquinho, desenhando na prancheta
 			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'reboucas', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
-			e.animation = new ReboucasDrawing( e, gltf, e.room.seat, def.height )
+			e.animation = e.room.mode === 'teodolito' ? new ReboucasObserving( e, gltf, e.room.theo, e.room.room, def.height ) : new ReboucasDrawing( e, gltf, e.room.seat, def.height )
 			this.dimensions[ def.id ] = { height: def.height, animated: true }
 			return
 		}
@@ -274,10 +275,10 @@ export class CharacterSets {
 		for ( const e of this.entries ) {
 			if ( e.worldZ === undefined ) continue
 			const x = e.side * NICHE_X, d = Math.hypot( x - camera.position.x, e.worldZ - camera.position.z )
-			_sp.center.set( x, 1.5, e.worldZ ); _sp.radius = 5.5
-			e.group.visible = e.ready && Math.abs( e.worldZ ) < this.range && ( d < 6 || _fr.intersectsSphere( _sp ) )
+			_bx.min.set( e.side === 1 ? 3.6 : - 7.6, 0, e.worldZ - 2.6 ); _bx.max.set( e.side === 1 ? 7.6 : - 3.6, 4.6, e.worldZ + 2.6 ) // abertura do nicho na parede: só vale a pena desenhar a sala se a entrada dela está no campo de visão
+			e.group.visible = e.ready && Math.abs( e.worldZ ) < this.range && ( d < 6 || Math.abs( camera.position.x ) > 4 || _fr.intersectsBox( _bx ) )
 			e.near = e.group.visible && d < this.nearDist
-				if ( e.small && e.group.visible && ( d > this.lodDist ) !== e.far ) { e.far = d > this.lodDist; for ( const o of e.small ) o.visible = ! e.far }
+				if ( e.small && e.group.visible ) { const tier = d > this.lodDist * 1.6 ? 2 : d > this.lodDist ? 1 : 0; if ( tier !== e.tier ) { e.tier = tier; for ( const o of e.small ) o.visible = tier === 0 || ( tier === 1 && o.userData.lodR >= .55 ) || o.userData.lodR >= 1.4 } }
 			if ( e.animation?.holder ) e.animation.holder.visible = e.near
 			if ( e.group.visible && d < bd ) { bd = d; best = e }
 		}

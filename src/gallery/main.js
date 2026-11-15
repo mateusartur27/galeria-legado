@@ -79,7 +79,7 @@ async function main(){
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
  const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):null;
- const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16});gallery.sets=sets;
+ const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16,minRadius:low?.09:0});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
