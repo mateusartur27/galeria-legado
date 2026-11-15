@@ -164,9 +164,9 @@ export function layout( people = 1, startSide = -1, first = 1, focus = null, onl
 const _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sp = new THREE.Sphere()
 
 export class CharacterSets {
-	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18 } = {} ) {
+	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18, lodDist = 1e9 } = {} ) {
 		// loop = passeio infinito: as `people` salas formam um anel; quando uma fica para trás, pula `people` baias adiante (já escondida na névoa) e o passeio repete.
-		this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / 2 - 3 ); this.nearDist = nearDist; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
+		this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / 2 - 3 ); this.nearDist = nearDist; this.lodDist = lodDist; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
 		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus, only, pattern ).map( e => ( { ...e, base: e.logical, group: new THREE.Group(), ready: false } ) )
 		this.lights = []; this.statics = new Map(); this.characterMaterials = new Map(); this.dimensions = {}
 		this.propMat = new THREE.MeshStandardNodeMaterial( { vertexColors: true, roughness: .72, metalness: .05 } )
@@ -195,8 +195,14 @@ export class CharacterSets {
 					const gltf = first ? src : { ...src, scene: SkeletonUtils.clone( src.scene ) } // clona do molde, sem tocar nele
 					this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();await e.animation.toolEditor.load();} }
 			} catch ( err ) { throw new Error(`Personagem ${def.id}: ${err.message}`) }
-			e.ready = true
+			e.ready = true; if ( this.loop ) this.buildLod( e )
 		}
+	}
+	// Nível de detalhe por sala: objetos pequenos (< 0,55 m) só são desenhados quando a sala está perto (`lodDist`); de longe custam draw calls sem aparecer.
+	buildLod( e ) {
+		e.group.updateMatrixWorld( true ); e.small = []
+		const box = new THREE.Box3(), sph = new THREE.Sphere()
+		e.group.traverse( o => { if ( ! o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || ! o.visible ) return; box.setFromObject( o ); box.getBoundingSphere( sph ); if ( sph.radius < .55 ) e.small.push( o ) } )
 	}
 	material( src, id = null, meshName = '' ) {
 		if ( this.characterMaterials.has( src ) ) return this.characterMaterials.get( src )
@@ -271,6 +277,7 @@ export class CharacterSets {
 			_sp.center.set( x, 1.5, e.worldZ ); _sp.radius = 5.5
 			e.group.visible = e.ready && Math.abs( e.worldZ ) < this.range && ( d < 6 || _fr.intersectsSphere( _sp ) )
 			e.near = e.group.visible && d < this.nearDist
+				if ( e.small && e.group.visible && ( d > this.lodDist ) !== e.far ) { e.far = d > this.lodDist; for ( const o of e.small ) o.visible = ! e.far }
 			if ( e.animation?.holder ) e.animation.holder.visible = e.near
 			if ( e.group.visible && d < bd ) { bd = d; best = e }
 		}

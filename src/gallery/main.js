@@ -75,11 +75,11 @@ async function main(){
  // Passeio automático (padrão do site publicado, ou ?tour): a câmera anda sozinha, vira para cada nicho, para um instante e segue; as salas formam um anel que se repete.
  const tourMode=!params.has('set')&&!params.has('rig')&&(import.meta.env.PROD||params.has('tour'));
  if(tourMode){state.paused=false;state.exploring=false;document.body.classList.add('tour');const st=document.createElement('style');st.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint{display:none!important}body.tour #intro{transition:opacity 1.6s;}body.tour.tour-clear #intro{opacity:0;pointer-events:none}';document.head.appendChild(st);setTimeout(()=>document.body.classList.add('tour-clear'),7000);}
- const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:9):1)));
+ const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:8):1)));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
  const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):null;
- const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho','machado']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18});gallery.sets=sets;
+ const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
@@ -94,7 +94,8 @@ async function main(){
  // Celular já abre no nível 2 (sem sombras, sem MSAA, sem luzes extras): medido num aparelho real, nível 0 = 20 fps e nível 2 = 56 fps.
  if(low){engine.level=2;engine.settings.degrade(2);}
  // ?stats: contador na tela (motor, fps, resolução, nível) para diagnosticar no celular.
- if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`pior quadro ${Math.round(engine.worstMs??0)} ms · CPU ${(engine.cpuAvg??0).toFixed(1)} (pior ${Math.round(engine.cpuWorst??0)}) ms\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
+ const PR=window.__prof={};let pa=0;
+ if(params.has('stats')){const box=document.createElement('div');box.style.cssText='position:fixed;left:8px;top:8px;z-index:50;padding:6px 8px;border-radius:8px;background:#000a;color:#9f9;font:11px/1.35 monospace;white-space:pre;pointer-events:none';document.body.appendChild(box);setInterval(()=>{const i=renderer.info.render;box.textContent=`${engine.backend} · ${Math.round(engine.fps??0)} fps (${(engine.frameMs??0).toFixed(1)} ms)\n`+`resolução ${engine.dpr.toFixed(2)}x de ${devicePixelRatio}x · tela ${innerWidth}×${innerHeight}\n`+`animação ${(PR.animate??0).toFixed(1)} · cull ${(PR.cull??0).toFixed(1)} · desenho ${(PR.render??0).toFixed(1)} ms\n+pior quadro ${Math.round(engine.worstMs??0)} ms · CPU ${(engine.cpuAvg??0).toFixed(1)} (pior ${Math.round(engine.cpuWorst??0)}) ms\n`+`nível ${engine.level} · ${i.drawCalls} draws · ${(i.triangles/1000).toFixed(0)}k tris`;},600);}
  progress(62,'Preparando o percurso…');
  // (partículas de poeira removidas: custavam draw call/blend e não faziam falta)
  camera.rotation.order='YXZ';camera.rotation.y=-.015;camera.rotation.x=.015;
@@ -135,7 +136,7 @@ async function main(){
    const dx=(-s*walkDir+c*strafe)*v,dz=(-c*walkDir-s*strafe)*v;
    moveBy(dx,dz);}
   {const upd=state.distance!==gallery.lastProgress||gallery.dirty||!culler.ready;if(upd)culler.restore();gallery.update(state.distance);if(upd){culler.register(scene);culler.capture();culler.ready=true;}}
-  sets.animate(dt);
+  pa=performance.now();sets.animate(dt);PR.animate=(PR.animate??0)*.9+(performance.now()-pa)*.1;
   // Parado num set: a sombra do sol cobre só a sala (±10 m em vez de 34×44 m) → 4× mais nitidez com o mesmo mapa, e segue a sala se o visitante andar.
   if(parked&&parked.worldZ!==undefined){const tz=Math.round(parked.worldZ*2)/2;if(tz!==shadowZ){shadowZ=tz;const tx=parked.side*NICHE_X;sun.target.position.set(tx,1.2,tz);sun.position.set(tx-15,19.2,tz-14);}}
   {const near=[...sets.entries].filter(e=>e.worldZ!==undefined).sort((a,b)=>Math.abs(a.worldZ)-Math.abs(b.worldZ));
@@ -149,7 +150,7 @@ async function main(){
   camera.rotation.set((tourMode?0:.015)+state.pitch,state.yaw-(tourMode?0:.015),0,'YXZ');
   if(window.__camOverride){const o=window.__camOverride;camera.position.set(...o.pos);camera.lookAt(...o.at);if(o.fov&&camera.fov!==o.fov){camera.fov=o.fov;camera.updateProjectionMatrix();}} // depuração: câmera livre
   window.__game?.rigEditor?.updateOverlay();window.__game?.toolEditor?.update();
-  sets.cull(camera);culler.apply(camera);pipeline.render();
+  pa=performance.now();sets.cull(camera);culler.apply(camera);const pb=performance.now();PR.cull=(PR.cull??0)*.9+(pb-pa)*.1;pipeline.render();PR.render=(PR.render??0)*.9+(performance.now()-pb)*.1;
   if(t-lastUi>.4){$('distance').textContent=`${Math.floor(state.distance).toString().padStart(3,'0')} m`;lastUi=t;}
  });
  const togglePause=()=>{state.paused=!state.paused;$('pause-icon').textContent=state.paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',state.paused?'Continuar percurso':'Pausar percurso');notice(state.paused?'Percurso pausado':'Seguindo em frente');};
