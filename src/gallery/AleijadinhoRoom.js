@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { BAKED } from './baked-layouts.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { texture, vec2, vec3, vec4, float, mix, smoothstep, vertexColor, positionLocal, positionWorld, cameraPosition, modelWorldMatrixInverse, select } from 'three/tsl';
 import { ROOM, TAU, canvasTex, withColor, xf, tube, arcPts, wallPanel, box, loadModel, texLoader, texCache, polyTex } from './PeriodRoom.js';
@@ -182,7 +183,7 @@ export async function buildAleijadinhoRoom( group, { galleryBrightness } ) {
 	// posições salvas pelo usuário (recuperadas do navegador): viram o padrão do cenário
 	const LAYOUT_DEFAULT = {"isaias":{"x":0.62,"y":0.02,"z":-0.3,"rot":0},"scaffold":{"x":-1.2,"y":-0.26,"z":-0.3,"rot":0},"ladder":{"x":-1.44,"y":-0.5,"z":0.43,"rot":180},"fence":{"x":0,"y":0,"z":-4,"rot":0},"block":{"x":2.15,"y":0.02,"z":-0.2,"rot":0},"rock":{"x":1.7,"y":0.02,"z":-0.7,"rot":0},"stool":{"x":1.7,"y":0.02,"z":0.95,"rot":0},"basket":{"x":-2.27,"y":0.02,"z":0.71,"rot":71},"bucket":{"x":0.04,"y":0.02,"z":0.4,"rot":0},"crate":{"x":-2.31,"y":0.02,"z":-0.35,"rot":-96},"lantern":{"x":-0.2,"y":0.02,"z":0.55,"rot":0},"tools":{"x":1.05,"y":0,"z":0.84,"rot":-90},"aleijadinho":{"x":0.7,"y":2.03,"z":-0.13,"rot":29},"alvo":{"x":1.16,"y":2.58,"z":-0.13,"rot":0},"cintura":{"x":0.7,"y":2.865,"z":-0.13,"rot":0}}
 	for ( const k of Object.keys( LAYOUT_DEFAULT ) ) if ( objs[ k ] ) objs[ k ].def = { ...objs[ k ].def, ...LAYOUT_DEFAULT[ k ] }
-	const LKEY = 'legado.layout.aleijadinho.v1', saved = ( () => { try { return JSON.parse( localStorage.getItem( LKEY ) ) || {} } catch { return {} } } )()
+	const LKEY = 'legado.layout.aleijadinho.v1', saved = ( () => { try { return JSON.parse( localStorage.getItem( LKEY ) ) || BAKED.aleijadinho } catch { return BAKED.aleijadinho } } )()
 	const marker = new THREE.Mesh( new THREE.RingGeometry( .42, .47, 48 ).rotateX( - Math.PI / 2 ), new THREE.MeshBasicNodeMaterial( { color: '#ffd27a', transparent: true, opacity: .9, depthTest: false } ) ); marker.renderOrder = 20; marker.visible = false; room.add( marker )
 	const order = [ 'isaias', 'scaffold', 'aleijadinho', 'alvo', 'cintura', 'ladder', 'fence', 'block', 'rock', 'stool', 'basket', 'bucket', 'crate', 'lantern', 'tools' ].filter( k => objs[ k ] )
 	let current = order[ 0 ]

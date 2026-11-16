@@ -1,10 +1,10 @@
-export const LIGHTING_DEFAULTS=Object.freeze({brightness:1,lightHeight:5.35,roofBrightness:.7});
+export const LIGHTING_DEFAULTS=Object.freeze({brightness:1,lightHeight:2.1,roofBrightness:.7});
 // Increment only when the shared art direction should replace older local roof presets.
 export const ROOF_PRESET_VERSION=1;
 export const LIGHTING_STORAGE_KEY='legado.lighting.zones.v2';
 const clamp=(n,min,max,fallback)=>Number.isFinite(n)?Math.min(max,Math.max(min,n)):fallback;
 function readSettings(){
- try{const saved=JSON.parse(localStorage.getItem(LIGHTING_STORAGE_KEY))??{brightness:1,lightHeight:JSON.parse(localStorage.getItem('legado.lighting.v1'))?.lightHeight};return{brightness:clamp(saved?.brightness,.2,1.5,1),lightHeight:clamp(saved?.lightHeight,1,7,5.35),roofBrightness:saved?.roofPresetVersion===ROOF_PRESET_VERSION?clamp(saved?.roofBrightness,.2,3,.7):LIGHTING_DEFAULTS.roofBrightness};}
+ try{const saved=JSON.parse(localStorage.getItem(LIGHTING_STORAGE_KEY))??{brightness:1,lightHeight:JSON.parse(localStorage.getItem('legado.lighting.v1'))?.lightHeight};return{brightness:clamp(saved?.brightness,.2,1.5,1),lightHeight:clamp(saved?.lightHeight,1,7,2.1),roofBrightness:saved?.roofPresetVersion===ROOF_PRESET_VERSION?clamp(saved?.roofBrightness,.2,3,.7):LIGHTING_DEFAULTS.roofBrightness};}
  catch{return{...LIGHTING_DEFAULTS};}
 }
 export function createLightingControls({onChange,onOpen}){

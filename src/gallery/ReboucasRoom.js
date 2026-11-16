@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { BAKED } from './baked-layouts.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { texture, vec2, vec3, vec4, float, mix, smoothstep, vertexColor, positionLocal, cameraPosition, modelWorldMatrixInverse, select, dot, atan, uniform, triplanarTexture } from 'three/tsl';
 import { buildTheodolite } from './Theodolite.js';
@@ -191,7 +192,7 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 	const HANDKEYS = OBSERVE ? [ 'mao_esq', 'mao_dir', 'dedos_esq', 'dedos_dir' ] : []
 	for ( const [ key, label ] of [ [ 'mao_esq', 'André · mão esquerda' ], [ 'mao_dir', 'André · mão direita' ], [ 'dedos_esq', 'André · dedos esquerda' ], [ 'dedos_dir', 'André · dedos direita' ] ] ) if ( OBSERVE ) objs[ key ] = { label, grp: new THREE.Group(), base: 0, def: { x: 0, y: 0, z: 0, rot: 0, pitch: 0, yaw: 0 } }
 	const hooks = { onHand: null }
-	const LKEY = 'legado.layout.reboucas.v1', saved = ( () => { try { return JSON.parse( localStorage.getItem( LKEY ) ) || {} } catch { return {} } } )()
+	const LKEY = 'legado.layout.reboucas.v1', saved = ( () => { try { return JSON.parse( localStorage.getItem( LKEY ) ) || BAKED.reboucas } catch { return BAKED.reboucas } } )()
 	const marker = new THREE.Mesh( new THREE.RingGeometry( .42, .47, 48 ).rotateX( - Math.PI / 2 ), new THREE.MeshBasicNodeMaterial( { color: '#ffd27a', transparent: true, opacity: .9, depthTest: false } ) ); marker.renderOrder = 20; marker.visible = false; room.add( marker )
 	const order = [ 'teodolito', 'mao_esq', 'mao_dir', 'dedos_esq', 'dedos_dir', 'prancheta', 'andre', 'banco', 'lampiao', 'mala', 'bau', 'trilhos', 'crate', 'crate2', 'barril1', 'barril2', 'corazul2' ].filter( k => objs[ k ] )
 	let current = order[ 0 ], markerOn = false

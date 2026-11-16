@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { BAKED } from './baked-layouts.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -15,7 +16,7 @@ import { texture, vec3, vec2, vec4, float, mix, smoothstep, step, uniform, posit
 
 // Ajuste ao vivo da paisagem da janela (painel "Janela" no modo ?set=). size = largura (m) da imagem gigante atrás da parede,
 // depth = distância dela atrás da janela, x/y = onde a montanha fica em relação ao centro da janela (m). Persistido no navegador.
-const WV_KEY = 'legado.window.v1', WV_DEFAULT = { size: 17, depth: 2.6, x: 0, y: 1.85 }
+const WV_KEY = 'legado.window.v1', WV_DEFAULT = { size: 10, depth: 1.7, x: 0, y: 1.85 }
 function readWV() { try { const s = JSON.parse(localStorage.getItem(WV_KEY)); return { ...WV_DEFAULT, ...( s && typeof s === 'object' ? s : {} ) } } catch { return { ...WV_DEFAULT } } }
 const _wv = readWV()
 export const windowView = {
@@ -398,7 +399,7 @@ export async function buildStudyRoom(group, { galleryBrightness }) {
 	// registro dos objetos da mesa + API usada pelo painel "Mesa"
 	deskObjs.lamp = { label: 'Lâmpada a óleo', grp: holders.vintage_oil_lamp, base: 0, def: { x: -.44, z: .78, rot: 0 } }
 	deskObjs.candle = { label: 'Candelabros', grp: holders.brass_candleholders, base: .3, def: { x: .38, z: .78, rot: 0 } }
-	const DESK_KEY = 'legado.desk.v1', savedDesk = ( () => { try { return JSON.parse(localStorage.getItem(DESK_KEY)) || {} } catch { return {} } } )()
+	const DESK_KEY = 'legado.desk.v1', savedDesk = ( () => { try { return JSON.parse(localStorage.getItem(DESK_KEY)) || BAKED.desk } catch { return BAKED.desk } } )()
 	const marker = new THREE.Mesh(new THREE.RingGeometry(.075, .09, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicNodeMaterial({ color: '#ffd27a', transparent: true, opacity: .95, depthTest: false })); marker.renderOrder = 20; marker.visible = false; room.add(marker)
 	let current = 'book'
 	const apply = k => { const o = deskObjs[ k ]; if (!o || !o.grp) return; const v = o.val; o.grp.position.set(v.x, .8, v.z); o.grp.rotation.y = o.base + v.rot * Math.PI / 180; if (k === current) marker.position.set(v.x, .812, v.z) }
