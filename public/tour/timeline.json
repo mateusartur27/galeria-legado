@@ -1,7 +1,7 @@
 {
  "fps": 30,
- "frames": 2408,
- "duration": 80.27,
+ "frames": 1719,
+ "duration": 57.3,
  "timeline": [
   {
    "frame": 0,
@@ -35,34 +35,20 @@
    "frame": 1201,
    "t": 40.03,
    "logical": 3,
-   "char": "machado",
+   "char": "reboucas",
    "phase": 0
   },
   {
-   "frame": 1399,
-   "t": 46.63,
+   "frame": 1410,
+   "t": 47,
    "logical": 3,
-   "char": "machado",
+   "char": "reboucas",
    "phase": 1
   },
   {
-   "frame": 1648,
-   "t": 54.93,
+   "frame": 1659,
+   "t": 55.3,
    "logical": 4,
-   "char": "aleijadinho",
-   "phase": 0
-  },
-  {
-   "frame": 2099,
-   "t": 69.97,
-   "logical": 4,
-   "char": "aleijadinho",
-   "phase": 1
-  },
-  {
-   "frame": 2348,
-   "t": 78.27,
-   "logical": 5,
    "char": "machado",
    "phase": 0
   }

@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { texture, vec2, vec3, vec4, float, mix, smoothstep, vertexColor, positionLocal, cameraPosition, modelWorldMatrixInverse, select, dot, atan, uniform, triplanarTexture } from 'three/tsl';
+import { buildTheodolite } from './Theodolite.js';
 import { ROOM, TAU, canvasTex, withColor, xf, tube, arcPts, wallPanel, box, loadModel, texLoader, texCache, polyTex } from './PeriodRoom.js';
 
 // ---------------------------------------------------------------------------------------------
@@ -39,6 +40,7 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 	const mat = ( opts, glow = .1 ) => { const m = new THREE.MeshStandardNodeMaterial( opts ); m.emissiveNode = ( m.map ? texture( m.map ).rgb : vec3( m.color.r, m.color.g, m.color.b ) ).mul( warm ).mul( glow ).mul( galleryBrightness ); return m }
 	const { halfW: W, spring: SP, front: ZF } = ROOM, ZB = -.98, ZBS = -40, D = ZF - ZB, QZ = - 3.6, WATERY = - 1.0
 	const room = new THREE.Group(); room.name = 'room-reboucas'; group.add( room )
+	const OBSERVE = new URLSearchParams( location.search ).get( 'acao' ) !== 'desenho' // padrão: ele olha pelo teodolite; ?acao=desenho = sentado na prancheta
 	const add = ( g, m, { cast = false, recv = true, parent = null } = {} ) => { const mesh = new THREE.Mesh( g, m ); mesh.castShadow = cast; mesh.receiveShadow = recv; ( parent || room ).add( mesh ); return mesh }
 
 	// --- CÉU + CAIS + BAÍA: tudo pelo raio do olhar. Para cima: céu de aurora com o sol baixo atrás. Para baixo: o piso do cais até a borda (QZ) e depois a água refletindo o céu.
@@ -93,30 +95,10 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 	const objs = {}
 	const reg = ( key, label, grp ) => { objs[ key ] = { label, grp, base: grp.rotation.y, def: { x: grp.position.x, y: grp.position.y, z: grp.position.z, rot: 0 } } }
 
-	// --- teodolito de bronze sobre tripé de madeira (~1,65 m), luneta apontada para a baía (-Z)
-	const theo = new THREE.Group(); theo.name = 'teodolito'; room.add( theo )
-	{ const L = mk(), HY = 1.38
-		for ( let i = 0; i < 3; i ++ ) { const a = Math.PI / 2 + i * TAU / 3 + .0, fx = Math.cos( a ) * .62, fz = Math.sin( a ) * .62, hx = Math.cos( a ) * .07, hz = Math.sin( a ) * .07
-			L.wood.push( limb( [ fx, .0, fz ], [ hx, HY, hz ], .026, i % 2 ? '#4a3220' : '#563a25' ) ); L.iron.push( withColor( new THREE.ConeGeometry( .022, .06, 8 ).translate( fx, .03, fz ), '#3a3a3c' ) )
-			L.brass.push( withColor( xf( new THREE.BoxGeometry( .05, .09, .05 ), [ hx * 1.05, HY - .03, hz * 1.05 ], [ 0, - a, 0 ] ), '#b08a45' ) )
-			{ const A = new THREE.Vector3( fx, 0, fz ), B = new THREE.Vector3( hx, HY, hz ), dv = B.clone().sub( A ).normalize(), q = new THREE.Quaternion().setFromUnitVectors( new THREE.Vector3( 0, 1, 0 ), dv ) // cintas de latão e sapata de ferro em cada perna
-				for ( const [ t, h, r ] of [ [ .12, .035, .03 ], [ .86, .06, .03 ] ] ) { const P = A.clone().lerp( B, t ); L.brass.push( withColor( new THREE.CylinderGeometry( r, r, h, 12 ).applyQuaternion( q ).translate( P.x, P.y, P.z ), '#b08a45' ) ) } } }
-		{ const ph = [ 0, 1, 2 ].map( i => { const a = Math.PI / 2 + i * TAU / 3; return [ Math.cos( a ) * .1, Math.sin( a ) * .1 ] } ) // placa triangular da cabeça do tripé + prumo
-			L.wood.push( withColor( new THREE.CylinderGeometry( .125, .125, .03, 3 ).rotateY( Math.PI / 2 ).translate( 0, HY - .005, 0 ), '#4a3220' ) )
-			L.iron.push( withColor( new THREE.CylinderGeometry( .0035, .0035, .22, 5 ).translate( 0, HY - .125, 0 ), '#8a8478' ) )
-			L.brass.push( withColor( new THREE.ConeGeometry( .022, .06, 14 ).rotateX( Math.PI ).translate( 0, HY - .26, 0 ), '#c9a050' ) ) }
-		L.brass.push( withColor( new THREE.CylinderGeometry( .115, .13, .03, 28 ).translate( 0, HY + .015, 0 ), '#a98343' ) ) // prato de apoio
-		for ( let i = 0; i < 3; i ++ ) { const a = i * TAU / 3 + .5; L.brass.push( withColor( new THREE.SphereGeometry( .022, 10, 8 ).translate( Math.cos( a ) * .105, HY + .045, Math.sin( a ) * .105 ), '#c9a050' ) ) } // parafusos de nivelamento
-		L.brass.push( withColor( new THREE.CylinderGeometry( .095, .095, .028, 36 ).translate( 0, HY + .06, 0 ), '#d0a85a' ), withColor( new THREE.CylinderGeometry( .088, .088, .006, 36 ).translate( 0, HY + .078, 0 ), '#e6d3a0' ) ) // limbo horizontal graduado
-		L.brass.push( withColor( new THREE.CylinderGeometry( .045, .06, .1, 20 ).translate( 0, HY + .13, 0 ), '#b8914a' ) )
-		for ( const s of [ - 1, 1 ] ) L.brass.push( withColor( new THREE.BoxGeometry( .03, .26, .05 ).translate( s * .085, HY + .27, 0 ), '#b8914a' ) ) // colunas
-		L.iron.push( withColor( new THREE.CylinderGeometry( .016, .016, .24, 12 ).rotateZ( Math.PI / 2 ).translate( 0, HY + .33, 0 ), '#2e2d2a' ) ) // eixo horizontal
-		const tel = new THREE.Group(); tel.position.set( 0, HY + .33, 0 )
-		{ const T = mk(); T.brass.push( withColor( new THREE.CylinderGeometry( .03, .03, .46, 20 ).rotateX( Math.PI / 2 ), '#c19a50' ), withColor( new THREE.CylinderGeometry( .044, .036, .1, 20 ).rotateX( Math.PI / 2 ).translate( 0, 0, - .27 ), '#d2ab5c' ), withColor( new THREE.CylinderGeometry( .016, .02, .1, 14 ).rotateX( Math.PI / 2 ).translate( 0, 0, .27 ), '#a98343' ) )
-			T.iron.push( withColor( new THREE.TorusGeometry( .075, .006, 8, 40 ).rotateY( Math.PI / 2 ).translate( .115, 0, .06 ), '#d6b266' ) ) // círculo vertical
-			T.brass.push( withColor( new THREE.CylinderGeometry( .068, .068, .01, 30 ).rotateZ( Math.PI / 2 ).translate( .113, 0, .06 ), '#e3cf9a' ) ); flush( T, tel ) }
-		tel.rotation.x = .03; theo.add( tel ); flush( L, theo ) }
-	theo.position.set( - .1, .02, - .7 ); reg( 'teodolito', 'Teodolito de bronze', theo )
+	// --- teodolito de bronze sobre tripé de nogueira (Theodolite.js): luneta apontada para a baía (-Z), eixo a 1,56 m
+	const theo = buildTheodolite( { HY: 1.23, add, room, woodMat, ironMat, tri, galleryBrightness, warm } )
+	theo.position.set( - .1, .02, - .7 ); if ( OBSERVE ) theo.rotation.y = Math.PI / 2 // luneta apontada para -X: ele fica de perfil para o corredor
+	reg( 'teodolito', 'Teodolito de bronze', theo )
 
 	// --- prancheta de desenho inclinada, com planta das docas, esquadro, compasso e tinteiro
 	let tableTop = null
@@ -131,9 +113,12 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 		const U = mk(); U.wood.push( box( 1.1, .01, .045, [ 0, .026, .2 ], '#8a6a44' ), box( .045, .012, .5, [ - .45, .027, - .05 ], '#8a6a44' ) ) // esquadro em T
 		
 		U.iron.push( withColor( new THREE.CylinderGeometry( .03, .036, .06, 14 ).translate( .5, .045, - .3 ), '#25252a' ) ) // tinteiro
-		U.rope.push( withColor( new THREE.CylinderGeometry( .04, .04, .7, 12 ).rotateZ( Math.PI / 2 ).translate( - .1, .055, - .39 ), '#d9d2b8' ) ) // planta enrolada
+		U.rope.push( withColor( new THREE.CylinderGeometry( .04, .04, .6, 12 ).rotateX( Math.PI / 2 ).translate( - .6, .055, - .02 ), '#d9d2b8' ) ) // planta enrolada
 		flush( U, top ) }
-	table.position.set( - 1.45, .02, - .25 ); table.rotation.y = .5; reg( 'prancheta', 'Prancheta de desenho', table )
+	table.position.set( - 1.45, .02, - .25 ); const TROT = 2.83; table.rotation.y = TROT; table.scale.y = .76; reg( 'prancheta', 'Prancheta de desenho', table ) // baixa (tampo ~0,75 m): ele desenha sentado
+	// prancheta virada para o fundo (baía) e ele sentado desse lado, de frente para quem passa pelo corredor; assento a 67 cm do centro, lado baixo do tampo; o banquinho fica embaixo
+	const SEAT = [ table.position.x + .67 * Math.sin( TROT ), .02, table.position.z + .67 * Math.cos( TROT ) ]
+	const seat = new THREE.Group(); seat.name = 'andre-assento'; seat.position.set( ...SEAT ); seat.rotation.y = TROT + Math.PI; room.add( seat ); if ( ! OBSERVE ) reg( 'andre', 'André Rebouças (assento)', seat )
 
 	// --- trilhos de vagonete (dormentes + trilhos de ferro) correndo até a borda do cais
 	const rails = new THREE.Group(); rails.name = 'trilhos'; room.add( rails )
@@ -172,7 +157,7 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 
 	// --- objetos (Poly Haven CC0): caixotes, barris, banco, lampião
 	const items = [
-		{ key: 'banco', label: 'Banco', id: 'wooden_stool_01', h: .42, pos: [ - .75, .02, .5 ], rotY: .5 },
+		{ key: 'banco', label: 'Banco', id: 'wooden_stool_01', h: .25, pos: [ SEAT[ 0 ], .02, SEAT[ 2 ] - .03 ], rotY: TROT },
 		{ key: 'lampiao', label: 'Lampião', id: 'Lantern_01', h: .42, pos: [ - 2.2, .02, .1 ], rotY: .3 },
 		{ key: 'crate', label: 'Caixote', id: 'wooden_crate_02', h: .5, pos: [ 2.2, .02, - .7 ], rotY: .2 },
 		{ key: 'crate2', label: 'Caixote (cima)', id: 'wooden_crate_01', h: .42, pos: [ 2.17, .52, - .72 ], rotY: - .3 },
@@ -188,6 +173,7 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 		if ( m.map ) m.emissiveNode = texture( m.map ).rgb.mul( warm ).mul( .08 ).mul( galleryBrightness ); mcache.set( src, m ); return m }
 	const placed = {}
 	for ( const it of items ) {
+		if ( OBSERVE && it.key === 'banco' ) continue
 		const src = await loadModel( it.id ); if ( ! src ) continue
 		const obj = src.clone( true ); if ( it.only ) for ( const c of [ ...obj.children ] ) if ( ! c.name.includes( it.only ) ) obj.remove( c )
 		obj.traverse( n => { if ( n.isMesh ) { n.material = fix( n.material ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
@@ -201,17 +187,21 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 	objs.corazul2 = { label: 'Céu · cor do azul sólido', grp: new THREE.Group(), base: 0, def: { x: 153, y: 20, z: 0, rot: 0 } } // x = B do azul de cima, y = B do azul de baixo (0–255)
 	const LAYOUT_DEFAULT = {}
 	for ( const k of Object.keys( LAYOUT_DEFAULT ) ) if ( objs[ k ] ) objs[ k ].def = { ...objs[ k ].def, ...LAYOUT_DEFAULT[ k ] }
+	// ajuste fino das mãos do André (modo teodolito): deslocamento em cm no quadro dele, giro do punho e curvatura dos dedos; ReboucasObserving lê .val a cada quadro
+	const HANDKEYS = OBSERVE ? [ 'mao_esq', 'mao_dir', 'dedos_esq', 'dedos_dir' ] : []
+	for ( const [ key, label ] of [ [ 'mao_esq', 'André · mão esquerda' ], [ 'mao_dir', 'André · mão direita' ], [ 'dedos_esq', 'André · dedos esquerda' ], [ 'dedos_dir', 'André · dedos direita' ] ] ) if ( OBSERVE ) objs[ key ] = { label, grp: new THREE.Group(), base: 0, def: { x: 0, y: 0, z: 0, rot: 0, pitch: 0, yaw: 0 } }
+	const hooks = { onHand: null }
 	const LKEY = 'legado.layout.reboucas.v1', saved = ( () => { try { return JSON.parse( localStorage.getItem( LKEY ) ) || {} } catch { return {} } } )()
 	const marker = new THREE.Mesh( new THREE.RingGeometry( .42, .47, 48 ).rotateX( - Math.PI / 2 ), new THREE.MeshBasicNodeMaterial( { color: '#ffd27a', transparent: true, opacity: .9, depthTest: false } ) ); marker.renderOrder = 20; marker.visible = false; room.add( marker )
-	const order = [ 'teodolito', 'prancheta', 'banco', 'lampiao', 'mala', 'bau', 'trilhos', 'crate', 'crate2', 'barril1', 'barril2', 'corazul2' ].filter( k => objs[ k ] )
-	let current = order[ 0 ]
-	const apply = k => { const o = objs[ k ]; if ( ! o ) return; const v = o.val; if ( k === 'corazul2' ) { blueU.value = v.x; blueBU.value = v.y; return } o.grp.position.set( v.x, v.y, v.z ); o.grp.rotation.y = o.base + v.rot * Math.PI / 180; if ( k === current ) marker.position.set( v.x, v.y + .05, v.z ) }
+	const order = [ 'teodolito', 'mao_esq', 'mao_dir', 'dedos_esq', 'dedos_dir', 'prancheta', 'andre', 'banco', 'lampiao', 'mala', 'bau', 'trilhos', 'crate', 'crate2', 'barril1', 'barril2', 'corazul2' ].filter( k => objs[ k ] )
+	let current = order[ 0 ], markerOn = false
+	const apply = k => { const o = objs[ k ]; if ( ! o ) return; const v = o.val; if ( k === 'corazul2' ) { blueU.value = v.x; blueBU.value = v.y; return } o.grp.position.set( v.x, v.y, v.z ); o.grp.rotation.y = o.base + v.rot * Math.PI / 180; if ( k === current && ! HANDKEYS.includes( k ) ) marker.position.set( v.x, v.y + .05, v.z ) }
 	for ( const k of order ) { const o = objs[ k ]; o.val = { ...o.def, ...( saved[ k ] || {} ) }; apply( k ) }
 	const desk = {
-		meta: { override: k => k === 'corazul2' ? { x: { label: 'Azul de cima (B do RGB)', min: 0, max: 255, step: 1, unit: '' }, y: { label: 'Azul de baixo (B do RGB)', min: 0, max: 255, step: 1, unit: '' } } : null, title: 'Cenário · posições', spec: [ [ 'x', 'Ao longo do corredor', - 2.5, 2.5, .01, 'm' ], [ 'y', 'Altura', - .5, 3, .01, 'm' ], [ 'z', 'Frente ↔ fundo', - 3.4, 1.3, .01, 'm' ], [ 'rot', 'Giro', - 180, 180, 1, '°' ] ] },
+		meta: { override: k => HANDKEYS.includes( k ) ? ( k.startsWith( 'dedos' ) ? { x: { label: 'Curvatura dos dedos (%)', min: - 70, max: 70, step: 1, unit: '%' } } : { x: { label: 'Para fora (+) / dentro (−)', min: - 8, max: 8, step: .1, unit: 'cm' }, y: { label: 'Altura', min: - 8, max: 8, step: .1, unit: 'cm' }, z: { label: 'Frente (+) / trás (−)', min: - 8, max: 8, step: .1, unit: 'cm' }, rot: { label: 'Giro da mão (palma p/ cima ↔ baixo)', min: - 90, max: 90, step: 1, unit: '°' }, pitch: { label: 'Flexão do punho (dedos p/ cima ↔ baixo)', min: - 60, max: 60, step: 1, unit: '°' }, yaw: { label: 'Desvio do punho (dedos p/ os lados)', min: - 45, max: 45, step: 1, unit: '°' } } ) : k === 'corazul2' ? { x: { label: 'Azul de cima (B do RGB)', min: 0, max: 255, step: 1, unit: '' }, y: { label: 'Azul de baixo (B do RGB)', min: 0, max: 255, step: 1, unit: '' } } : { x: { label: 'Ao longo do corredor', min: - 2.5, max: 2.5, step: .01, unit: 'm' }, y: { label: 'Altura', min: - .5, max: 3, step: .01, unit: 'm' }, z: { label: 'Frente ↔ fundo', min: - 3.4, max: 1.3, step: .01, unit: 'm' }, rot: { label: 'Giro', min: - 180, max: 180, step: 1, unit: '°' } }, title: 'Cenário · posições', spec: [ [ 'x', 'Ao longo do corredor', - 2.5, 2.5, .01, 'm' ], [ 'y', 'Altura', - .5, 3, .01, 'm' ], [ 'z', 'Frente ↔ fundo', - 3.4, 1.3, .01, 'm' ], [ 'rot', 'Giro', - 180, 180, 1, '°' ], [ 'pitch', 'Flexão', - 60, 60, 1, '°' ], [ 'yaw', 'Desvio', - 45, 45, 1, '°' ] ] },
 		keys: () => order, label: k => objs[ k ].label, get: k => ( { ...objs[ k ].val } ),
 		set( k, prop, v ) { objs[ k ].val[ prop ] = Number( v ); apply( k ) },
-		select( k ) { current = k; apply( k ) }, marker( on ) { marker.visible = !! on },
+		select( k ) { current = k; apply( k ); marker.visible = markerOn && ! HANDKEYS.includes( k ); hooks.onHand?.( HANDKEYS.includes( k ), k ) }, marker( on ) { markerOn = !! on; marker.visible = markerOn && ! HANDKEYS.includes( current ) },
 		save() { try { const out = {}; for ( const k of order ) out[ k ] = { ...objs[ k ].val }; localStorage.setItem( LKEY, JSON.stringify( out ) ); return true } catch { return false } },
 		reset( k ) { for ( const kk of k ? [ k ] : order ) { objs[ kk ].val = { ...objs[ kk ].def }; apply( kk ) } if ( ! k ) try { localStorage.removeItem( LKEY ) } catch {} },
 		all() { const out = {}; for ( const k of order ) out[ k ] = { ...objs[ k ].val }; return out },
@@ -221,7 +211,7 @@ export async function buildReboucasRoom( group, { galleryBrightness } ) {
 	// luz: sol baixo e quente de trás (contraluz de aurora) + preenchimento frio e suave pela frente
 	const sun = new THREE.SpotLight( '#ffcf99', 6, 9, .95, .9, 1.5 ); sun.position.set( 1.0, 4.4, ZB + .2 ); sun.target.position.set( - .1, 1.2, - .7 ); room.add( sun, sun.target )
 	const fill = new THREE.SpotLight( '#dfe8ff', 8, 10, .8, .85, 1.5 ); fill.position.set( - 2.0, 4.4, ZF + .9 ); fill.target.position.set( - .3, 1.0, - .5 ); room.add( fill, fill.target )
-	return { room, placed, sun, desk, walkMaxX }
+	return { room, placed, sun, desk, walkMaxX, seat, theo, hands: OBSERVE ? { esq: objs.mao_esq, dir: objs.mao_dir, dedosEsq: objs.dedos_esq, dedosDir: objs.dedos_dir } : null, hooks, mode: OBSERVE ? 'teodolito' : 'desenho' }
 }
 
 

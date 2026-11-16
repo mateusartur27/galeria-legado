@@ -2,6 +2,9 @@ import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { AleijadinhoRigEditor } from './AleijadinhoRigEditor.js';
+import { RigPoseSampler } from './RigPoseSampler.js';
+import { UniversalRigTest } from './UniversalRigTest.js';
+import { repairTorsoSkinWeights } from './TorsoSkinWeights.js';
 
 const GUIDE={Hips:[0,.48,0],Spine:[0,.58,0],Spine1:[0,.68,0],Spine2:[0,.77,0],Neck:[0,.86,0],Head:[0,.91,0]};
 for(const [side,s] of [['Left',1],['Right',-1]])for(const [n,p] of Object.entries({Shoulder:[.04,.80,0],Arm:[.14,.78,0],ForeArm:[.26,.77,0],Hand:[.38,.76,0],UpLeg:[.07,.48,0],Leg:[.07,.27,0],Foot:[.07,.06,0],ToeBase:[.07,.025,.06]}))GUIDE[side+n]=[p[0]*s,p[1],p[2]];
@@ -37,7 +40,7 @@ export class RigStudio {
     }finally{loading.remove();}
   }
   makeAnimation(gltf,def){
-    const model=gltf.scene;model.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+    const model=gltf.scene;if(def.id==='aleijadinho')repairTorsoSkinWeights(model);model.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
     const root=new THREE.Group();root.name='rig-model-'+def.id;root.add(model);
     // Source skeleton transforms stay untouched below this normalization group.
     model.position.sub(new THREE.Vector3(center.x,box.min.y,center.z));root.scale.setScalar(1/size.y);
@@ -50,7 +53,9 @@ export class RigStudio {
     let referenceOnly=!Object.keys(bones).length;
     if(referenceOnly){
       const guides=new THREE.Group();holder.add(guides);
-      for(const [name,p] of Object.entries(GUIDE)){const bone=new THREE.Bone();bone.name=name;bones[name]=bone;const parent=parentOf(name);(parent?bones[parent]:guides).add(bone);bone.position.fromArray(p);if(parent)bone.position.sub(new THREE.Vector3(...GUIDE[parent]));}
+      const guide=Object.fromEntries(Object.entries(GUIDE).map(([n,p])=>[n,[...p]]));
+      if(def.id==='adhemar'&&def.model.includes('adhemar-running'))for(const [side,sign] of [['Left',1],['Right',-1]])for(const [role,p] of Object.entries({Shoulder:[.04,.78,0],Arm:[.11,.76,0],ForeArm:[.15,.63,.015],Hand:[.13,.59,.10],UpLeg:[.075,.47,0],Leg:[.12,.29,.035],Foot:[.15,.065,0],ToeBase:[.15,.025,.065]}))guide[side+role]=[p[0]*sign,p[1],p[2]];
+      for(const [name,p] of Object.entries(guide)){const bone=new THREE.Bone();bone.name=name;bones[name]=bone;const parent=parentOf(name);(parent?bones[parent]:guides).add(bone);bone.position.fromArray(p);if(parent)bone.position.sub(new THREE.Vector3(...guide[parent]));}
     }
     // For reference-only models include the guides in the same root interface, without scaling them twice.
     const sceneRoot=new THREE.Group();holder.remove(root);sceneRoot.add(root);
@@ -58,9 +63,10 @@ export class RigStudio {
     const restPose=[];sceneRoot.traverse(n=>{if(n.isBone)restPose.push([n,n.position.clone(),n.quaternion.clone(),n.scale.clone()]);});
     const live=this.game.gallery.sets.entries.find(e=>e.character.id===def.id)?.animation;
     const clip=gltf.animations[0]??live?.clip??null,mixer=clip?new THREE.AnimationMixer(sceneRoot):null,action=clip?mixer.clipAction(clip).play():null;
-    const animation={entry:{character:def,group:home,room:{}},root:sceneRoot,holder,scale:def.height,editorPosition:[0,0,0],bones,restPose,referenceOnly,normalization:{sourceHeight:size.y,sourceCenter:[center.x,box.min.y,center.z],sourceSpace:'GLTF +Y up',previewHeight:def.height},clip,action,mixer,time:0,playing:false,
-      update(dt){if(this.rigEditor?.editing&&!this.rigEditor.preview)return;this.rigEditor?.restorePoseOffsets();if(this.clip){if(this.playing)this.time=(this.time+dt)%this.clip.duration;this.mixer.setTime(this.time);}else for(const [b,p,q,s] of this.restPose){b.position.copy(p);b.quaternion.copy(q);b.scale.copy(s);}this.rigEditor?.applyCalibration();},
+    const animation={entry:{character:def,group:home,room:{}},root:sceneRoot,holder,scale:def.height,editorPosition:[0,0,0],bones,restPose,referenceOnly,normalization:{sourceHeight:size.y,sourceCenter:[center.x,box.min.y,center.z],sourceSpace:'GLTF +Y up',previewHeight:def.height},clip,action,mixer,time:0,playing:false,testMode:'all',
+      update(dt){if(this.rigEditor?.editing&&!this.rigEditor.preview)return;if(this.rigEditor?.preview){if(this.playing)this.time=(this.time+dt)%this.universal.duration(this.testMode);this.universal.pose(this.time,this.testMode);return;}this.rigEditor?.restorePoseOffsets();if(this.clip){if(this.playing)this.time=(this.time+dt)%this.clip.duration;this.mixer.setTime(this.time);this.poseSampler.sample(this.time);}else for(const [b,p,q,s] of this.restPose){b.position.copy(p);b.quaternion.copy(q);b.scale.copy(s);}this.rigEditor?.applyCalibration();},
     };
+    animation.poseSampler=new RigPoseSampler(animation);animation.universal=new UniversalRigTest(animation);
     return animation;
   }
   updateOverlay(){

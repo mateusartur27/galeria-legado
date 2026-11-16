@@ -15,8 +15,8 @@ fs.rmSync( out, { recursive: true, force: true } ); fs.mkdirSync( out, { recursi
 const browser = await chromium.launch( { headless: true, args: [ '--enable-unsafe-webgpu', '--ignore-gpu-blocklist', '--enable-gpu', '--use-angle=d3d11', '--disable-gpu-sandbox' ] } )
 const page = await browser.newPage( { viewport: { width, height }, deviceScaleFactor: 1 } )
 page.on( 'pageerror', e => console.error( 'pageerror', e.message ) )
-await page.goto( `${base}/?tour&record&dpr=1`, { waitUntil: 'load' } )
-await page.waitForFunction( () => window.__rec && window.__game?.state?.assetsReady && document.getElementById( 'loading' ).classList.contains( 'done' ), null, { timeout: 240000 } )
+await page.goto( `${base}/?tour&record&dpr=1${opt( 'query', '' )}`, { waitUntil: 'load' } )
+await page.waitForFunction( () => window.__rec && window.__game?.state?.assetsReady && document.getElementById( 'loading' ).classList.contains( 'done' ), null, { timeout: 900000 } )
 await page.waitForTimeout( 1500 )
 
 const dt = 1 / fps, timeline = []

@@ -23,6 +23,7 @@ export class ReboucasDrawing {
 		this.time = 0
 		this.playing = ! matchMedia( '(prefers-reduced-motion: reduce)' ).matches
 		this.update( 0 )
+		window.__andre = this // depuração
 	}
 	// lápis de engenheiro na mão direita (a animação foi espelhada: escreve com a direita). Posicionado a cada quadro pelos dedos (polegar + indicador).
 	addPencil() {

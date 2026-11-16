@@ -77,11 +77,11 @@ async function main(){
  const lockInput=tourMode||(import.meta.env.PROD&&params.has('set')&&!params.has('editar')&&!params.has('live')&&!params.has('rig'));
  if(lockInput){document.body.classList.add('tour');const st0=document.createElement('style');st0.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint,body.tour #desk-panel,body.tour #intro{display:none!important}';document.head.appendChild(st0);}
  if(tourMode){state.paused=false;state.exploring=false;document.body.classList.add('tour');const st=document.createElement('style');st.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint{display:none!important}body.tour #intro{transition:opacity 1.6s;}body.tour.tour-clear #intro{opacity:0;pointer-events:none}';document.head.appendChild(st);setTimeout(()=>document.body.classList.add('tour-clear'),7000);}
- const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:8):1)));
+ const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:9):1)));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
  const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):null;
- const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16,minRadius:low?.09:0});gallery.sets=sets;
+ const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho','reboucas']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho','reboucas']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16,minRadius:low?.09:0});gallery.sets=sets;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;

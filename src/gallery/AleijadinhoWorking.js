@@ -3,6 +3,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { galleryBrightness } from './Gallery.js';
 import { vec3 } from 'three/tsl';
 import { AleijadinhoStrike } from './AleijadinhoStrike.js';
+import { RigPoseSampler } from './RigPoseSampler.js';
+import { AleijadinhoToolEditor } from './AleijadinhoToolEditor.js';
 
 // ---------------------------------------------------------------------------------------------
 // Aleijadinho trabalhando no andaime: rig próprio (Rigs/Aleijadinho - Rig.blend) + animação do Mixamo.
@@ -51,10 +53,23 @@ export class AleijadinhoWorking {
 		if ( ! this.bones.RightHand || ! this.bones.LeftHand ) throw new Error( 'Não encontrei as mãos do Aleijadinho.' );
 		this.root.updateMatrixWorld( true );
 		this.buildTools();
+        // Near-wrist lashings must follow the same rigid frame as the left hand.
+        for(const item of this.toolAttachments.filter(item=>['left-forearm-2','left-forearm-3'].includes(item.id))){this.bones.LeftHand.attach(item.object);item.bone='LeftHand';}
 		this.buildChips( parent ); this.buildWorkHooks();
 			if ( this.opts.target ) this.strike = new AleijadinhoStrike( this ); // mão esquerda crava o ponteiro, a direita bate nele (linha do tempo editável)
+		this.poseSampler=new RigPoseSampler(this);
+		this.captureMalletOrientation();this.toolEditor=new AleijadinhoToolEditor(this);
 		this.update( 0 );
 		this.debugFromUrl();
+	}
+
+	// Use the neutral bind-pose wrist, not the bent wrist from the impact clip.
+	// Hand, lashings and mallet follow the forearm as one rigid, aligned unit.
+	captureMalletOrientation() {
+		this.malletHandOrientation=this.restPose.find(([bone])=>bone===this.bones.RightHand)[2].clone().normalize();
+	}
+	holdMalletOrientation() {
+		const hand=this.bones.RightHand;hand.quaternion.copy(this.malletHandOrientation);hand.updateWorldMatrix(true,true);
 	}
 
 	// depuração: ?wt=1.15 (pausa nesse instante do clipe) &wa=0 (ângulo da câmera em graus; 0 = vista do corredor) &wd=3 (distância) &wf=34 (fov)
@@ -88,10 +103,10 @@ export class AleijadinhoWorking {
 		const parent = this.holder.parent?.parent ?? this.holder.parent, v = new THREE.Vector3(), saved = this.time; parent?.updateMatrixWorld( true );
 		const dur = this.clip.duration, step = .02; let best = Infinity, bestT = this.hitTime, first = null;
 		for ( let t = 0; t < dur; t += step ) {
-			this.mixer.setTime( t ); this.root.updateMatrixWorld( true ); tip.getWorldPosition( v ); ( this.opts.target.parent ).worldToLocal( v );
+			this.rigCalibration?.restoreFrame();this.mixer.setTime(t);this.poseSampler.sample(t);this.rigCalibration?.apply();this.holdMalletOrientation();this.root.updateMatrixWorld(true);tip.getWorldPosition(v);(this.opts.target.parent).worldToLocal(v);
 			const d = v.distanceTo( T.position ); if ( d < best ) { best = d; bestT = t; } if ( first === null && d < .14 ) first = t;
 		}
-		this.mixer.setTime( saved ); this.root.updateMatrixWorld( true );
+		this.rigCalibration?.restoreFrame();this.mixer.setTime(saved);this.poseSampler.sample(saved);this.rigCalibration?.apply();this.holdMalletOrientation();this.root.updateMatrixWorld(true);
 		this.hitTime = Math.max( 0, ( first ?? bestT ) - .03 ); this.hitDist = best;
 	}
 	burst() {
@@ -111,12 +126,12 @@ export class AleijadinhoWorking {
 
 	// coloca `obj` (definido na T-pose, em coordenadas do arquivo) como filho do osso, preso a ele
 	// prende `obj` ao osso; o referencial do osso tem Y ao longo do osso (do pulso para os dedos)
-	lash( boneName, obj, pos = [ 0, 0, 0 ], rot = [ 0, 0, 0 ] ) {
-		const bone = this.bones[ boneName ]; obj.position.set( ...pos ); obj.rotation.set( ...rot ); bone.add( obj );
+	lash( boneName, obj, pos = [ 0, 0, 0 ], rot = [ 0, 0, 0 ], id = null ) {
+		const bone = this.bones[ boneName ]; obj.position.set( ...pos ); obj.rotation.set( ...rot ); bone.add( obj );if(id)this.toolAttachments.push({id,bone:boneName,object:obj});
 		obj.traverse( n => { if ( n.isMesh ) { n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false; } } );
 	}
 
-	buildTools() {
+	buildTools() {this.toolAttachments=[];
 		const k = 1 / this.scale;              // metros reais → unidades do arquivo
 		const wood = makeMat( '#7a5532', .66 ), darkWood = makeMat( '#4e3420', .72 ), leather = makeMat( '#4b2f1c', .85 ), rope = makeMat( '#b79d6e', .95 ), iron = makeMat( '#aeb2b5', .42, .85, .05 );
 		const ring = ( r, tube, mt ) => new THREE.Mesh( new THREE.TorusGeometry( r, tube, 8, 24 ).rotateX( Math.PI / 2 ), mt ); // eixo ao longo de Y (do osso)
@@ -125,9 +140,9 @@ export class AleijadinhoWorking {
 
 		// ---- tiras de couro e cordas em volta do punho (osso do antebraço = antes do pulso; osso da mão = depois)
 		for ( const side of [ 'Right', 'Left' ] ) {
-			const bind = ( boneName, y, r, tube, mt ) => { const m = ring( r, tube, mt ); m.scale.set( 1, 1, .9 ); this.lash( boneName, m, [ 0, y, 0 ] ); };
-			bind( side + 'ForeArm', .06, .074, .016, leather ); bind( side + 'ForeArm', .135, .066, .014, leather ); bind( side + 'ForeArm', .165, .064, .01, rope );
-			bind( side + 'Hand', .045, .068, .015, leather ); bind( side + 'Hand', .10, .074, .01, rope );
+			const bind = ( boneName, y, r, tube, mt, index ) => { const m = ring( r, tube, mt ); m.scale.set( 1, 1, .9 ); this.lash( boneName, m, [ 0, y, 0 ], [0,0,0], side.toLowerCase()+'-'+(boneName.endsWith('ForeArm')?'forearm':'hand')+'-'+index ); };
+			bind( side + 'ForeArm', .06, .074, .016, leather, 1 ); bind( side + 'ForeArm', .135, .066, .014, leather, 2 ); bind( side + 'ForeArm', .165, .064, .01, rope, 3 );
+			bind( side + 'Hand', .045, .068, .015, leather, 1 ); bind( side + 'Hand', .10, .074, .01, rope, 2 );
 		}
 
 		// ---- maço de madeira (mão direita: ele é destro): cabo amarrado ALONGADO ao braço (mesma direção), cabeça na ponta, além dos dedos
@@ -139,7 +154,7 @@ export class AleijadinhoWorking {
 			const bandB = bandA.clone(); bandB.position.x = - .05 * k;
 			const lash = part( new THREE.CylinderGeometry( .026 * k, .026 * k, .05 * k, 10 ), leather ); lash.position.y = .06 * k;
 			g.add( handle, head, bandA, bandB, lash );
-			this.lash( 'RightHand', g, T.malletPos ?? [ 0, .02, .0 ], T.malletRot ?? [ 0, 0, 0 ] ); this.mallet = g;
+			this.lash( 'RightHand', g, T.malletPos ?? [ 0, .02, .0 ], T.malletRot ?? [ 0, 0, 0 ], 'mallet' ); this.mallet = g;
 		}
 		// ---- ponteiro (mão esquerda): amarrado a 90° do braço, atravessado na palma, ponta para a frente
 		{
@@ -152,12 +167,13 @@ export class AleijadinhoWorking {
 			const tip = part( new THREE.BoxGeometry( .02 * k, .004 * k, .02 * k ), iron ); tip.position.z = .26 * k;
 			const lash = part( axis( new THREE.CylinderGeometry( .024 * k, .024 * k, .045 * k, 10 ) ), leather ); lash.position.z = - .02 * k;
 			g.add( handle, cap, ferrule, shaft, tip, lash );
-			this.lash( 'LeftHand', g, T.chiselPos ?? [ 0, .12, 0 ], T.chiselRot ?? [ 0, 0, 0 ] ); this.chisel = g;
+			this.lash( 'LeftHand', g, T.chiselPos ?? [ 0, .12, 0 ], T.chiselRot ?? [ 0, 0, 0 ], 'chisel' ); this.chisel = g;
 			if ( ! T.chiselRot ) { // ponta (+Z do grupo) para trás do personagem na T-pose
 				const bone = this.bones.LeftHand, qb = bone.getWorldQuaternion( new THREE.Quaternion() ), back = new THREE.Vector3( 0, 0, - 1 ).applyQuaternion( this.holder.getWorldQuaternion( new THREE.Quaternion() ) ).applyQuaternion( qb.invert() );
 				g.quaternion.setFromUnitVectors( new THREE.Vector3( 0, 0, 1 ), back ); }
 		}
 	}	update( dt ) {
+        if(this.toolEditor?.editing&&!this.toolEditor.preview)return;
 		if ( this.rigEditor?.editing && ! this.rigEditor.preview ) return;
 		this.rigEditor?.restorePoseOffsets();
 		this.rigCalibration?.restoreFrame();
@@ -169,9 +185,11 @@ export class AleijadinhoWorking {
 			this.stepChips?.( Math.min( dt, .1 ) );
 		}
 		this.mixer.setTime( this.time );
+		this.poseSampler.sample(this.time);
 		this.rigEditor?.applyCalibration();
 		this.rigCalibration?.apply();
-		st?.apply( this.time );
+		for(const name of ['Neck','Head']){const rest=this.restPose.find(([bone])=>bone===this.bones[name]);if(rest)this.bones[name].quaternion.copy(rest[2]).normalize();}
+        if(st)st.apply(this.time);else this.holdMalletOrientation();
 	}
 	seek( seconds ) { this.time = ( ( seconds % this.clip.duration ) + this.clip.duration ) % this.clip.duration; this.update( 0 ); }
 	getStats() { return { clip: this.clip.name, duration: this.clip.duration, time: this.time, playing: this.playing, rigCalibration: this.rigCalibration?.status, bones: Object.keys( this.bones ).length }; }

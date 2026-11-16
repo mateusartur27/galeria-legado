@@ -100,7 +100,6 @@ export async function buildAleijadinhoRoom( group, { galleryBrightness } ) {
 		for ( let i = 0; i < n; i ++ ) { const len = xb - xa - r() * .14, cx = xa + len / 2, zz = SC.z - SC.d / 2 + .07 + i * ( SC.d - .14 ) / ( n - 1 ) + jit() * .015; wood.push( box( len, .04 + r() * .012, .13 + r() * .02, [ cx, SC.deck + .01 + r() * .012, zz ], [ '#a88660', '#97774f', '#b29068', '#8f7049' ][ i % 4 ] ) ) } }
 	log( SC.x, SC.deck + .5, pz[ 0 ], SC.w + .2, 'x', .028 ); log( px[ 0 ], SC.deck + .5, SC.z, SC.d + .15, 'z', .028 ) // guarda-corpo baixo (só atrás e à esquerda)
 	for ( const [ x, z ] of [ [ px[ 0 ], pz[ 0 ] ], [ px[ 1 ], pz[ 0 ] ], [ px[ 0 ], pz[ 1 ] ] ] ) knot( x, SC.deck + .5, z, [ Math.PI / 2, 0, 0 ], 2 )
-	{ const g = new THREE.SphereGeometry( .17, 14, 10 ); g.scale( 1.35, .3, 1 ); wood.push( withColor( xf( g, [ SC.x + .45, SC.deck + .07, SC.z - .02 ], [ 0, .3, 0 ] ), '#6f5238' ) ) } // almofada onde ele se ajoelha
 	// lascas de pedra-sabão no pé do profeta
 	for ( let i = 0; i < 160; i ++ ) { const a = r() * TAU, d = Math.pow( r(), .6 ) * 2.4, x = .1 + Math.cos( a ) * d * 1.3, z = - .3 + Math.sin( a ) * d * .5
 		if ( z > ZF - .1 || z < ZB + .2 || Math.abs( x ) > W - .3 ) continue
@@ -181,7 +180,7 @@ export async function buildAleijadinhoRoom( group, { galleryBrightness } ) {
 	// --- posições: ordem do painel, ajuste, salvar no navegador
 	const fenceLight = new THREE.SpotLight( '#fff0d8', 14, 14, .7, .8, 1.4 ); room.add( fenceLight, fenceLight.target ) // sol que também alcança a cerca do fundo
 	// posições salvas pelo usuário (recuperadas do navegador): viram o padrão do cenário
-	const LAYOUT_DEFAULT = {"isaias":{"x":0.62,"y":0.02,"z":-0.3,"rot":0},"scaffold":{"x":-1.2,"y":-0.26,"z":-0.3,"rot":0},"ladder":{"x":-1.44,"y":-0.5,"z":0.43,"rot":180},"fence":{"x":0,"y":0,"z":-4,"rot":0},"block":{"x":2.15,"y":0.02,"z":-0.2,"rot":0},"rock":{"x":1.7,"y":0.02,"z":-0.7,"rot":0},"stool":{"x":1.7,"y":0.02,"z":0.95,"rot":0},"basket":{"x":-2.27,"y":0.02,"z":0.71,"rot":71},"bucket":{"x":0.04,"y":0.02,"z":0.4,"rot":0},"crate":{"x":-2.31,"y":0.02,"z":-0.35,"rot":-96},"lantern":{"x":-0.2,"y":0.02,"z":0.55,"rot":0},"tools":{"x":1.05,"y":0,"z":0.84,"rot":-90}}
+	const LAYOUT_DEFAULT = {"isaias":{"x":0.62,"y":0.02,"z":-0.3,"rot":0},"scaffold":{"x":-1.2,"y":-0.26,"z":-0.3,"rot":0},"ladder":{"x":-1.44,"y":-0.5,"z":0.43,"rot":180},"fence":{"x":0,"y":0,"z":-4,"rot":0},"block":{"x":2.15,"y":0.02,"z":-0.2,"rot":0},"rock":{"x":1.7,"y":0.02,"z":-0.7,"rot":0},"stool":{"x":1.7,"y":0.02,"z":0.95,"rot":0},"basket":{"x":-2.27,"y":0.02,"z":0.71,"rot":71},"bucket":{"x":0.04,"y":0.02,"z":0.4,"rot":0},"crate":{"x":-2.31,"y":0.02,"z":-0.35,"rot":-96},"lantern":{"x":-0.2,"y":0.02,"z":0.55,"rot":0},"tools":{"x":1.05,"y":0,"z":0.84,"rot":-90},"aleijadinho":{"x":0.7,"y":2.03,"z":-0.13,"rot":29},"alvo":{"x":1.16,"y":2.58,"z":-0.13,"rot":0},"cintura":{"x":0.7,"y":2.865,"z":-0.13,"rot":0}}
 	for ( const k of Object.keys( LAYOUT_DEFAULT ) ) if ( objs[ k ] ) objs[ k ].def = { ...objs[ k ].def, ...LAYOUT_DEFAULT[ k ] }
 	const LKEY = 'legado.layout.aleijadinho.v1', saved = ( () => { try { return JSON.parse( localStorage.getItem( LKEY ) ) || {} } catch { return {} } } )()
 	const marker = new THREE.Mesh( new THREE.RingGeometry( .42, .47, 48 ).rotateX( - Math.PI / 2 ), new THREE.MeshBasicNodeMaterial( { color: '#ffd27a', transparent: true, opacity: .9, depthTest: false } ) ); marker.renderOrder = 20; marker.visible = false; room.add( marker )
@@ -194,10 +193,15 @@ export async function buildAleijadinhoRoom( group, { galleryBrightness } ) {
 		keys: () => order, label: k => objs[ k ].label, get: k => ( { ...objs[ k ].val } ),
 		set( k, prop, v ) { objs[ k ].val[ prop ] = Number( v ); apply( k ) },
 		select( k ) { current = k; if ( k === 'cintura' ) { objs.cintura.val.x = objs.aleijadinho.val.x; objs.cintura.val.z = objs.aleijadinho.val.z } apply( k ); workHooks.onSelect?.( k ) }, marker( on ) { marker.visible = !! on; workHooks.onMarker?.( !! on ) },
-		save() { try { const out = {}; for ( const k of order ) out[ k ] = { ...objs[ k ].val }; localStorage.setItem( LKEY, JSON.stringify( out ) ); return true } catch { return false } },
+		save() { // navegador + projeto (asset-source/aleijadinho/layout/latest.json), para eu ler o que você salvou
+			let ok = false; try { const out = {}; for ( const k of order ) out[ k ] = { ...objs[ k ].val }; localStorage.setItem( LKEY, JSON.stringify( out ) ); ok = true } catch { }
+			try { fetch( '/__reference/aleijadinho-layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify( desk.all() ) } ).catch( () => { } ) } catch { }
+			return ok },
 		reset( k ) { for ( const kk of k ? [ k ] : order ) { objs[ kk ].val = { ...objs[ kk ].def }; apply( kk ) } if ( ! k ) try { localStorage.removeItem( LKEY ) } catch {} },
 		all() { const out = {}; for ( const k of order ) out[ k ] = { ...objs[ k ].val }; if ( out.cintura && out.aleijadinho ) out.cintura.modelZ = +( FEET_Y + ( out.cintura.y - out.aleijadinho.y ) / ( CH / MODEL_H ) ).toFixed(3); return out }, // cintura.modelZ = altura da articulação nas coordenadas do modelo (para refazer o rig)
 	}
+	// sem layout salvo neste navegador: usa o salvo no projeto (outro navegador / armazenamento limpo)
+	if ( ! Object.keys( saved ).length ) fetch( '/__reference/aleijadinho-layout' ).then( r => r.ok ? r.json() : null ).then( d => { const L = d?.layout; if ( ! L ) return; for ( const k of order ) if ( L[ k ] ) { const { modelZ, ...v } = L[ k ]; objs[ k ].val = { ...objs[ k ].def, ...v }; apply( k ) } } ).catch( () => { } )
 	// limite de caminhada = a cerca de pedra: |x| mundial máximo = 6,25 − z da cerca − margem (o nicho está a 6,25 do eixo do corredor)
 	const walkMaxX = () => 6.25 - objs.fence.val.z - .3
 	// luz: frio vindo do fundo (contraluz) e preenchimento quente da frente

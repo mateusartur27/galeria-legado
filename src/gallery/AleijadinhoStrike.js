@@ -4,7 +4,7 @@ import './strike-timeline.css';
 // ---------------------------------------------------------------------------------------------
 // Golpe do Aleijadinho: a mão ESQUERDA crava a ponta do ponteiro no ponto do golpe ("alvo") e a marreta (mão DIREITA)
 // bate na traseira do ponteiro. O corpo (pernas, tronco) segue o clipe do Mixamo; os braços são resolvidos por IK de 2 ossos.
-// O movimento do maço é uma linha do tempo de CHAVES editáveis (painel "Golpe"): recuo, ângulo, giro do cabo, tronco, curva e marca de impacto.
+// O movimento do maço é uma linha do tempo de CHAVES editáveis (painel "Golpe"): recuo, tronco, curva e marca de impacto; punho e maço mantêm a orientação.
 // ---------------------------------------------------------------------------------------------
 
 const KEY = 'legado.aleijadinho.golpe.v1', ENDPOINT = '/__reference/aleijadinho-golpe';
@@ -34,7 +34,8 @@ export class AleijadinhoStrike {
 	constructor( char ) {
 		this.c = char; this.cfg = clone( STRIKE_DEFAULT ); this.cfg.duration = char.clip.duration;
 		this.cfg.keys.forEach( k => k.t = Math.min( k.t, this.cfg.duration - .01 ) );
-		this.enabled = false; this.sel = 0; // desligado por padrão: vale a animação original do Mixamo this.info = { L: 0, R: 0 };
+		this.enabled = false; this.sel = 0; // desligado por padrão: vale a animação original do Mixamo
+		this.info = { L: 0, R: 0 };
 		const b = char.bones, ax = ( bone, child ) => child.position.clone().normalize();
 		char.root.updateMatrixWorld( true );
 		const mk = ( side, n1, n2, n3 ) => {
@@ -53,7 +54,11 @@ export class AleijadinhoStrike {
 
 	refreshRigAxes() {
 		const c=this.c;c.root.updateMatrixWorld(true);for(const arm of [this.L,this.R,this.LL,this.RL]){arm.aA.copy(arm.F.position).normalize();arm.aF.copy(arm.H.position).normalize();arm.aH.copy(arm.H.getWorldPosition(new V()).sub(arm.F.getWorldPosition(new V())).normalize().applyQuaternion(arm.H.getWorldQuaternion(new Q()).invert()));}
-		this.qChisel=basisQ(new V(0,0,1).applyQuaternion(c.chisel.quaternion).normalize(),this.L.aH.clone());
+		this.refreshToolAxes();
+	}
+
+	refreshToolAxes() {
+		const c=this.c;this.qChisel=basisQ(new V(0,0,1).applyQuaternion(c.chisel.quaternion).normalize(),this.L.aH.clone());this.qMallet=basisQ(new V(1,0,0).applyQuaternion(c.mallet.quaternion).normalize(),new V(0,1,0).applyQuaternion(c.mallet.quaternion).normalize());
 	}
 
 	sorted() { this.cfg.keys.sort( ( a, b ) => a.t - b.t ); }
@@ -94,12 +99,11 @@ export class AleijadinhoStrike {
 		arm.H.updateWorldMatrix( true, false ); arm.H.quaternion.copy( arm.H.parent.getWorldQuaternion( new Q() ).invert().multiply( qh ) ); arm.H.updateMatrixWorld( true );
 	}
 
-	// mão direita: orientação da mão e posição do punho para a face da marreta tocar a traseira do ponteiro (rollDeg = giro do cabo em torno do eixo do ponteiro)
-	malletPose( ex, up, butt, p, rollDeg ) {
+	// Initial wrist target; the final solve keeps the wrist rigid with the forearm.
+	malletPose( ex, up, butt, p ) {
 		const c = this.c, s = c.scale, m = c.mallet, qm = m.quaternion;
-		const ey = up.clone().addScaledVector( ex, - up.dot( ex ) ).normalize().applyQuaternion( new Q().setFromAxisAngle( ex, rollDeg * D2R ) );
-		const a = p.ang * D2R, n = ex.clone().multiplyScalar( Math.cos( a ) ).addScaledVector( ey, Math.sin( a ) ), h = ex.clone().multiplyScalar( - Math.sin( a ) ).addScaledVector( ey, Math.cos( a ) );
-		const qh = basisQ( n, h ).multiply( this.qMallet.clone().invert() ), F = butt.clone().addScaledVector( ex, - p.recuo / 100 );
+		const ey = up.clone().addScaledVector( ex, - up.dot( ex ) ).normalize().applyQuaternion( new Q().setFromAxisAngle( ex, this.cfg.tool.roll * D2R ) );
+		const qh = basisQ( ex, ey ).multiply( this.qMallet.clone().invert() ), F = butt.clone().addScaledVector( ex, - p.recuo / 100 );
 		const W = F.sub( m.position.clone().multiplyScalar( s ).applyQuaternion( qh ) ).sub( new V( ...FACE ).applyQuaternion( qm ).applyQuaternion( qh ) );
 		return { qh, W };
 	}
@@ -124,7 +128,6 @@ export class AleijadinhoStrike {
 		const yaw = new Q().setFromAxisAngle( up, this.cfg.tool.yaw * D2R ), pit = this.cfg.tool.pitch * D2R;
 		const ex = fwd.clone().applyQuaternion( yaw ).multiplyScalar( Math.cos( pit ) ).addScaledVector( up, - Math.sin( pit ) ).normalize();
 		const butt = tip.clone().addScaledVector( ex, - ( TIP_Z - BUTT_Z ) );
-		const segd = ( P, A, B ) => { const d = B.clone().sub( A ), u = THREE.MathUtils.clamp( P.clone().sub( A ).dot( d ) / d.dot( d ), 0, 1 ); return P.distanceTo( A.clone().addScaledVector( d, u ) ); };
 
 		// tronco: inclinação extra (positivo = para a frente) distribuída pela coluna; parte sempre da pose do Mixamo
 		const spineQ = this.spine.map( ( [ b ] ) => b.quaternion.clone() );
@@ -136,9 +139,9 @@ export class AleijadinhoStrike {
 				const loc = qp.clone().invert().multiply( new Q().setFromAxisAngle( left, deg * D2R * share ) ).multiply( qp ); bone.quaternion.premultiply( loc ); bone.updateMatrixWorld( true );
 			}
 		};
-		// bacia + giro do cabo: aproxima o tronco (pernas dobram, pés plantados) até os punhos alcançarem; só para frente/baixo e um pouco de lado
+		// bacia: aproxima o tronco (pernas dobram, pés plantados) até os punhos alcançarem; só para frente/baixo e um pouco de lado
 		const solve = () => {
-			const shR = W( this.R.A ), hp = W( hips ), sp2 = W( c.bones.Spine2 ), pl = W( this.L.A );
+			const shR = W( this.R.A ), pl = W( this.L.A );
 			const L0 = this.chiselPose( tip, ex, up, W( this.L.H ).sub( W( this.L.F ) ).normalize() ), rl = this.reach( this.L ) * .92, rr = this.reach( this.R ) * .95;
 			const solveV = mal => {
 				const v = new V(); if ( this.cfg.auto === false ) return v;
@@ -146,15 +149,7 @@ export class AleijadinhoStrike {
 				const vy = THREE.MathUtils.clamp( v.dot( up ), - .40, .05 ), vf = THREE.MathUtils.clamp( v.dot( fwd ), - .1, .34 ), vl = THREE.MathUtils.clamp( v.dot( left ), - .16, .16 );
 				return up.clone().multiplyScalar( vy ).addScaledVector( fwd, vf ).addScaledVector( left, vl );
 			};
-			let mal = this.malletPose( ex, up, butt, p, this.cfg.tool.roll + p.giro ), v = solveV( mal );
-			if ( this.cfg.auto !== false ) { // giro do cabo (base + `giro`): perto do ombro e fora do tronco
-				let best = Infinity, bm = mal;
-				for ( let r = - 180; r < 180; r += 10 ) {
-					const m = this.malletPose( ex, up, butt, p, r + p.giro ), tor = segd( m.W, hp.clone().add( v ), sp2.clone().add( v ) ), cost = Math.max( 0, m.W.distanceTo( shR.clone().add( v ) ) - rr ) * 10 + Math.max( 0, .14 - tor ) * 2 + Math.abs( r - this.cfg.tool.roll ) * 1e-4;
-					if ( cost < best ) { best = cost; bm = m; }
-				}
-				mal = bm; v = solveV( mal );
-			}
+			const mal = this.malletPose( ex, up, butt, p ), v = solveV( mal );
 			const miss = Math.max( 0, L0.W.distanceTo( pl.clone().add( v ) ) - rl ) + Math.max( 0, mal.W.distanceTo( shR.clone().add( v ) ) - rr );
 			return { mal, v, miss };
 		};
@@ -177,8 +172,15 @@ export class AleijadinhoStrike {
 		}
 		// ---- mão direita: a face da marreta na traseira do ponteiro
 		{
-			const arm = this.R, el = this.elbow( arm, mal.W, left.clone().multiplyScalar( - .5 ).addScaledVector( up, - 1 ).addScaledVector( fwd, - .25 ) );
-			this.setArm( arm, el, mal.qh ); this.info.R = el.miss;
+			const arm=this.R,pole=left.clone().multiplyScalar(-.5).addScaledVector(up,-1).addScaledVector(fwd,-.25),faceTarget=butt.clone().addScaledVector(ex,-p.recuo/100);
+			// Solve the tool contact by moving shoulder/elbow, never by rotating the wrist.
+			const wrist=mal.W.clone(),offset=c.mallet.position.clone().multiplyScalar(c.scale).add(new V(...FACE).applyQuaternion(c.mallet.quaternion));
+			for(let i=0;i<24;i++){
+				const el=this.elbow(arm,wrist,pole);this.aim(arm.A,arm.aA,el.E.clone().sub(el.pA));this.aim(arm.F,arm.aF,el.Wc.clone().sub(el.E));c.holdMalletOrientation();
+				const target=faceTarget.clone().sub(offset.clone().applyQuaternion(arm.H.getWorldQuaternion(new Q())));
+				if(wrist.distanceToSquared(target)<1e-10)break;wrist.lerp(target,.6);
+			}
+			const face=W(arm.H).add(offset.applyQuaternion(arm.H.getWorldQuaternion(new Q())));this.info.R=face.distanceTo(faceTarget);
 		}
 		refresh();
 	}
@@ -231,8 +233,6 @@ export class AleijadinhoStrike {
 		const F = [
 			field( 'Tempo da chave', 0, D(), .01, ' s', () => selKey()?.t ?? 0, v => { const k = selKey(); if ( k ) { k.t = v; this.sorted(); this.sel = cfg().keys.indexOf( k ); buildMarkers(); } } ),
 			field( 'Recuo do maço (0 = encostado)', 0, 60, .5, ' cm', () => selKey()?.recuo ?? 0, v => selKey() && ( selKey().recuo = v ) ),
-			field( 'Ângulo do maço', - 60, 120, 1, '°', () => selKey()?.ang ?? 0, v => selKey() && ( selKey().ang = v ) ),
-			field( 'Giro do cabo', - 180, 180, 1, '°', () => selKey()?.giro ?? 0, v => selKey() && ( selKey().giro = v ) ),
 			field( 'Tronco extra (+ p/ frente)', - 30, 45, 1, '°', () => selKey()?.tronco ?? 0, v => selKey() && ( selKey().tronco = v ) ),
 			field( 'Bacia extra: altura', - 50, 20, 1, ' cm', () => selKey()?.bacY ?? 0, v => selKey() && ( selKey().bacY = v ) ),
 			field( 'Bacia extra: p/ frente', - 30, 40, 1, ' cm', () => selKey()?.bacF ?? 0, v => selKey() && ( selKey().bacF = v ) ),

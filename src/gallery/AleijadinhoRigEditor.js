@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import './rig-editor.css';
+import { RigOrbitControls } from './RigOrbitControls.js';
 
 const POINTS = {
   Hips:'Bacia', Spine:'Cintura', Spine1:'Tronco', Spine2:'Peito', Neck:'Pescoço', Head:'Cabeça',
@@ -28,7 +29,7 @@ export class AleijadinhoRigEditor {
     this.animation=animation; this.game=game; this.selected='Spine'; this.view='front'; this.zoom=1;
     this.bones=Object.values(animation.bones);
     this.points=Object.fromEntries(this.bones.map(b=>[b.name,boneLabel(b.name)]));
-    this.selected=animation.bones.Spine?'Spine':this.bones[0].name;this.groupFilter='body';this.frame='body';
+    this.selected=animation.bones.Spine?'Spine':this.bones[0].name;this.groupFilter='body';this.frame='body';this.orbitYaw=0;this.orbitPitch=0;this.rigRevision=0;
     const depth=b=>b.parent?.isBone?depth(b.parent)+1:0;
     this.bones.sort((a,b)=>depth(a)-depth(b));
     this.base=new Map(animation.restPose.map(([b,p,q,s])=>[b,{p:p.clone(),q:q.clone(),s:s.clone()}]));
@@ -48,7 +49,7 @@ export class AleijadinhoRigEditor {
     const saved=[local,project].filter(r=>this.validReference(r)).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt))[0];
     if(saved){this.applyReference(saved);this.status.textContent='Último rig salvo carregado.';}
   }
-  validReference(r){return ['aleijadinho-rig/v1','character-rig/v2'].includes(r?.schema)&&(!r.characterId||r.characterId===this.id)&&Array.isArray(r.bones)&&r.bones.length===this.bones.length&&new Set(r.bones.map(b=>b.name)).size===this.bones.length&&r.bones.every(b=>this.points[b.name]&&Array.isArray(b.position)&&b.position.length===3&&b.position.every(v=>Number.isFinite(v)&&Math.abs(v)<100));}
+  validReference(r){if(this.id==='adhemar'&&this.options.model?.includes('adhemar-running')&&r?.model!==this.options.model)return false;return ['aleijadinho-rig/v1','character-rig/v2'].includes(r?.schema)&&(!r.characterId||r.characterId===this.id)&&Array.isArray(r.bones)&&r.bones.length===this.bones.length&&new Set(r.bones.map(b=>b.name)).size===this.bones.length&&r.bones.every(b=>this.points[b.name]&&Array.isArray(b.position)&&b.position.length===3&&b.position.every(v=>Number.isFinite(v)&&Math.abs(v)<100));}
   applyReference(r){if(!this.validReference(r))return;this.restorePoseOffsets();for(const b of this.bones)this.positions.get(b).fromArray(r.bones.find(p=>p.name===b.name).position);this.rebind();this.animation.update(0);}
   restoreBase() {for(const [b,v] of this.base){b.position.copy(v.p);b.quaternion.copy(v.q);b.scale.copy(v.s);}}
   restorePoseOffsets() {for(const [b,p] of this.poseBackup)b.position.copy(p);this.poseBackup.length=0;}
@@ -58,6 +59,7 @@ export class AleijadinhoRigEditor {
   }
   rest() {this.restorePoseOffsets();this.restoreBase();for(const b of this.bones)b.position.copy(this.positions.get(b));this.animation.holder.updateWorldMatrix(true,true);this.animation.root.updateMatrixWorld(true);}
   rebind() {
+    this.rigRevision++;
     this.rest();const inv=this.animation.holder.matrixWorld.clone().invert();
     const adjusted=new Map(this.bones.map(b=>[b,inv.clone().multiply(b.matrixWorld)]));
     for(const {s,inv:original} of this.skeletons){
@@ -78,7 +80,7 @@ export class AleijadinhoRigEditor {
     this.rebind();this.dirty=true;this.status.textContent='Ajustes ainda não salvos.';this.updateOverlay();
   }
   open() {
-    if(this.editing)return;
+    if(this.editing)return;this.game.toolEditor?.close();
     const {scene,state}=this.game,a=this.animation;
     this.wasPlaying=a.playing;this.wasPaused=state.paused;this.oldOverride=window.__camOverride;
     this.oldBackground=scene.background;this.oldFog=scene.fog;
@@ -95,7 +97,7 @@ export class AleijadinhoRigEditor {
   }
   close() {
     if(!this.editing)return;
-    this.endDrag();const a=this.animation,{scene,state}=this.game;
+    this.endDrag();this.orbit?.endAll();this.animation.universal?.stop();const a=this.animation,{scene,state}=this.game;
     this.restorePoseOffsets();this.oldParent.add(a.holder);a.holder.position.copy(this.oldTransform.p);a.holder.quaternion.copy(this.oldTransform.q);a.holder.scale.copy(this.oldTransform.s);
     this.studio.removeFromParent();for(const [t,v] of this.toolVisibility)t.visible=v;
     for(const [n,v] of this.oldVisible)n.visible=v;scene.background=this.oldBackground;scene.fog=this.oldFog;
@@ -103,20 +105,22 @@ export class AleijadinhoRigEditor {
     a.playing=this.wasPlaying;a.rest=false;a.update(0);
     document.body.classList.remove('rig-editing');this.panel.hidden=true;this.overlay.hidden=true;
   }
-  focus(view=this.view) {
-    this.view=view;const mobile=innerWidth<700,at=new THREE.Vector3(0,mobile?.25:.77,0),d=(mobile?6.2:3.8)/this.zoom;
-    if(this.frame==='point'){const b=this.animation.bones[this.selected];this.rest();at.copy(b.getWorldPosition(new THREE.Vector3()));if(mobile)at.y-=.12;}
-    const distance=this.frame==='point'?(mobile?1.2:.5)/this.zoom:d;
-    const dir={front:[0,0,1],back:[0,0,-1],left:[1,0,0],right:[-1,0,0],three:[.75,.15,1]}[view];
-    const pos=new THREE.Vector3(...dir).normalize().multiplyScalar(distance).add(at);
+  focus(view) {
+    const presets={front:[0,0],back:[Math.PI,0],left:[Math.PI/2,0],right:[-Math.PI/2,0],three:[.65,.12]};
+    if(view&&presets[view]){this.view=view;[this.orbitYaw,this.orbitPitch]=presets[view];}
+    const mobile=innerWidth<700,at=new THREE.Vector3(0,mobile?0:(this.preview?1:.77),0),d=(mobile?7.3:(this.preview?4.5:3.8))/this.zoom;
+    if(this.frame==='point'){const b=this.animation.bones[this.selected];if(!this.preview)this.rest();at.copy(b.getWorldPosition(new THREE.Vector3()));if(mobile)at.y-=.12;}
+    const distance=this.frame==='point'?(mobile?1.2:.5)/this.zoom:d,cp=Math.cos(this.orbitPitch);
+    const pos=new THREE.Vector3(Math.sin(this.orbitYaw)*cp,Math.sin(this.orbitPitch),Math.cos(this.orbitYaw)*cp).multiplyScalar(distance).add(at);
     window.__camOverride={pos:pos.toArray(),at:at.toArray(),fov:36};
-    for(const b of this.panel.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===view));
+    for(const b of this.panel.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===this.view));this.orbit?.sync();
   }
   setPreview(on) {
-    if(on&&!this.animation.clip)return;this.endDrag();this.preview=on;this.animation.playing=on;this.animation.rest=false;
-    if(on)this.animation.update(0);else this.rest();
-    this.panel.querySelector('[data-preview]').textContent=this.animation.clip?(on?'Voltar ao rig parado':'Testar animação'):'Modelo em repouso';
-    this.overlay.classList.toggle('preview',on);
+    if(on&&!this.animation.universal&&!this.animation.clip)return;this.endDrag();this.preview=on;this.animation.playing=on;this.animation.rest=false;
+    if(on){this.animation.time=0;this.animation.update(0);}else{this.animation.universal?.stop();this.rest();}
+    this.panel.querySelector('[data-preview]').textContent=on?'Parar teste':'Testar animação';
+    this.panel.querySelector('[data-pause-test]').disabled=!on;this.panel.querySelector('[data-pause-test]').textContent='Pausar';
+    this.overlay.classList.toggle('preview',on);this.focus();
   }
   updateOverlay() {
     if(!this.editing)return;
@@ -130,6 +134,7 @@ export class AleijadinhoRigEditor {
     const b=this.animation.bones[this.selected],p=this.animation.holder.worldToLocal(b.getWorldPosition(new THREE.Vector3()));
     this.readout.textContent=`${this.points[this.selected]} · X ${(p.x*this.animation.scale*100).toFixed(1)} / Y ${(p.y*this.animation.scale*100).toFixed(1)} / Z ${(p.z*this.animation.scale*100).toFixed(1)} cm`;
     this.syncCoordinates(p);
+    const names={run:'Correndo',walk:'Andando',jump:'Pulando',arms:'Movendo braços',elbows:'Flexionando cotovelos',fingers:'Movendo mãos e dedos'};this.panel.querySelector('[data-test-phase]').textContent=this.preview?(this.animation.universal?.lastPhase==='fingers'&&!this.animation.universal?.fingers?.length?'Movendo mãos · sem ossos de dedos':names[this.animation.universal?.lastPhase]??'Testando'):'Arraste o fundo para girar o modelo';
   }
   matchesGroup(name){return this.groupFilter==='all'||(this.groupFilter==='body'?!isFinger(name):isFinger(name)&&fingerSide(name)===this.groupFilter);}
   selectPoint(name){this.selected=name;this.select.value=name;this.updateOverlay();if(this.frame==='point')this.focus();}
@@ -175,26 +180,29 @@ export class AleijadinhoRigEditor {
       this.status.textContent=(browserSaved?'Salvo no navegador. ':'')+'Servidor de salvamento indisponível; uma cópia JSON foi baixada para compartilhar.';return reference;
     }
   }
-  dispose(){removeEventListener('resize',this.onResize);removeEventListener('keydown',this.onKeyDown,true);this.panel.remove();this.overlay.remove();}
+  dispose(){this.animation.universal?.dispose();this.orbit?.dispose();removeEventListener('resize',this.onResize);removeEventListener('keydown',this.onKeyDown,true);this.panel.remove();this.overlay.remove();}
   mount() {
     if(!this.options.catalog){const button=document.createElement('button');button.id='rig-toggle';button.textContent='Rig';button.title='Ajustar rig';button.setAttribute('aria-label',button.title);button.onclick=()=>this.open();document.querySelector('.controls').append(button);}
     const panel=document.createElement('section');panel.id='rig-editor';panel.hidden=true;panel.setAttribute('aria-label','Configurar rig de '+this.characterName);
-    panel.innerHTML=`<header><span class="rig-eyebrow">ESTÚDIO · PERSONAGENS</span><button data-close aria-label="Voltar à galeria">×</button></header><h2>Ajustar o rig</h2><label>Personagem<select data-character aria-label="Personagem"></select></label><p data-rig-info></p><p>Arraste os pontos até as articulações do corpo. A malha fica parada para você alinhar o esqueleto.</p><div class="rig-views"><button data-view="front">Frente</button><button data-view="left">Lado E</button><button data-view="right">Lado D</button><button data-view="back">Costas</button><button data-view="three">3/4</button></div><p class="rig-tip">Frente ajusta largura e altura.<br>Use as vistas laterais para a profundidade.</p><label>Mostrar pontos<select data-group aria-label="Grupo de pontos"><option value="body">Corpo</option><option value="left">Dedos da mão esquerda</option><option value="right">Dedos da mão direita</option><option value="all">Todos os ossos</option></select></label><label>Articulação<select data-point aria-label="Articulação"></select></label><output data-coordinates></output><div class="rig-coordinates"><label>X · cm<input type="number" step="0.01" data-axis="0" aria-label="X do ponto em centímetros"></label><label>Y · cm<input type="number" step="0.01" data-axis="1" aria-label="Y do ponto em centímetros"></label><label>Z · cm<input type="number" step="0.01" data-axis="2" aria-label="Z do ponto em centímetros"></label></div><div class="rig-row"><button data-frame="body">Ver corpo</button><button data-frame="point">Aproximar ponto</button></div><label class="rig-zoom">Aproximação<input aria-label="Aproximação" type="range" min="0.75" max="1.65" value="1" step="0.05"></label><div class="rig-row"><button data-reset>Restaurar ponto</button><button data-reset-all>Restaurar tudo</button></div><button data-preview>Testar animação</button><button data-save class="rig-save">Salvar rig</button><p data-status role="status">Salvar grava um arquivo no projeto para eu consultar seus ajustes.</p>`;
+    panel.innerHTML=`<header><span class="rig-eyebrow">ESTÚDIO · PERSONAGENS</span><button data-close aria-label="Voltar à galeria">×</button></header><h2>Ajustar o rig</h2><label>Personagem<select data-character aria-label="Personagem"></select></label><p data-rig-info></p><p>Arraste os pontos até as articulações do corpo. A malha fica parada para você alinhar o esqueleto.</p><div class="rig-views"><button data-view="front">Frente</button><button data-view="left">Lado E</button><button data-view="right">Lado D</button><button data-view="back">Costas</button><button data-view="three">3/4</button></div><p class="rig-tip">Frente ajusta largura e altura.<br>Arraste o fundo para girar. Use as vistas laterais para a profundidade.</p><label>Mostrar pontos<select data-group aria-label="Grupo de pontos"><option value="body">Corpo</option><option value="left">Dedos da mão esquerda</option><option value="right">Dedos da mão direita</option><option value="all">Todos os ossos</option></select></label><label>Articulação<select data-point aria-label="Articulação"></select></label><output data-coordinates></output><div class="rig-coordinates"><label>X · cm<input type="number" step="0.01" data-axis="0" aria-label="X do ponto em centímetros"></label><label>Y · cm<input type="number" step="0.01" data-axis="1" aria-label="Y do ponto em centímetros"></label><label>Z · cm<input type="number" step="0.01" data-axis="2" aria-label="Z do ponto em centímetros"></label></div><div class="rig-row"><button data-frame="body">Ver corpo</button><button data-frame="point">Aproximar ponto</button></div><label class="rig-rotation">Girar modelo<input data-orbit aria-label="Girar modelo" type="range" min="-180" max="180" step="1" value="0"></label><label class="rig-zoom">Aproximação<input aria-label="Aproximação" type="range" min="0.75" max="1.65" value="1" step="0.05"></label><div class="rig-row"><button data-reset>Restaurar ponto</button><button data-reset-all>Restaurar tudo</button></div><div class="rig-test-controls"><label>Teste de movimento<select data-test-mode aria-label="Teste de movimento"><option value="all">Sequência completa</option><option value="walk">Andar</option><option value="run">Correr</option><option value="runJump">Correr e pular</option><option value="jump">Pular</option><option value="arms">Mexer braços</option><option value="elbows">Flexionar cotovelos</option><option value="fingers">Mãos e dedos</option></select></label><div class="rig-row"><button data-preview>Testar animação</button><button data-pause-test disabled>Pausar</button></div><p data-test-phase>Arraste o fundo para girar o modelo</p></div><button data-save class="rig-save">Salvar rig</button><p data-status role="status">Salvar grava um arquivo no projeto para eu consultar seus ajustes.</p>`;
     document.body.append(panel);this.panel=panel;this.status=panel.querySelector('[data-status]');this.readout=panel.querySelector('output');this.select=panel.querySelector('[data-point]');
     this.coordinateInputs=[...panel.querySelectorAll('[data-axis]')];
     for(const [i,input] of this.coordinateInputs.entries())input.oninput=()=>{const v=input.valueAsNumber;if(!Number.isFinite(v))return;if(this.preview)this.setPreview(false);this.rest();const p=this.animation.holder.worldToLocal(this.animation.bones[this.selected].getWorldPosition(new THREE.Vector3()));p.setComponent(i,v/(this.animation.scale*100));this.setPoint(this.selected,this.animation.holder.localToWorld(p));};
     const chooser=panel.querySelector('[data-character]');for(const c of this.options.catalog??[{id:this.id,name:this.characterName}]){const o=document.createElement('option');o.value=c.id;o.textContent=c.name;chooser.append(o);}chooser.value=this.id;chooser.onchange=()=>this.options.onCharacterChange?.(chooser.value);
-    const fingers=this.bones.filter(b=>isFinger(b.name));panel.querySelector('[data-rig-info]').textContent=this.animation.referenceOnly?'Sem esqueleto neste arquivo: marque as articulações para montarmos o rig.':`${this.bones.length} ossos · ${fingers.length?fingers.length+' articulações de dedos':'sem ossos individuais nos dedos'}`;
+    const fingers=this.bones.filter(b=>isFinger(b.name));panel.querySelector('[data-rig-info]').textContent=this.animation.referenceOnly?'Sem rig definitivo · teste com pesos provisórios.':`${this.bones.length} ossos · ${fingers.length?fingers.length+' articulações de dedos':'sem ossos individuais nos dedos'}`;
     for(const option of panel.querySelector('[data-group]').options)if(['left','right'].includes(option.value)&&!fingers.some(b=>fingerSide(b.name)===option.value))option.disabled=true;
     panel.querySelector('[data-group]').onchange=e=>{this.groupFilter=e.target.value;this.fillPoints();};
     for(const b of panel.querySelectorAll('[data-frame]'))b.onclick=()=>{this.frame=b.dataset.frame;this.zoom=1;panel.querySelector('.rig-zoom input').value=1;this.focus();};
-    if(!this.animation.clip){panel.querySelector('[data-preview]').disabled=true;panel.querySelector('[data-preview]').textContent='Modelo em repouso';}
+
     for(const [name,label] of Object.entries(this.points)){const o=document.createElement('option');o.value=name;o.textContent=label;this.select.append(o);}this.select.value=this.selected;
     this.select.onchange=()=>this.selectPoint(this.select.value);
     panel.querySelector('[data-close]').onclick=()=>this.close();for(const b of panel.querySelectorAll('[data-view]'))b.onclick=()=>this.focus(b.dataset.view);
     panel.querySelector('.rig-zoom input').oninput=e=>{this.zoom=+e.target.value;this.focus();};
     panel.querySelector('[data-reset]').onclick=()=>this.reset();panel.querySelector('[data-reset-all]').onclick=()=>this.reset(true);
     panel.querySelector('[data-preview]').onclick=()=>this.setPreview(!this.preview);
+    panel.querySelector('[data-test-mode]').onchange=e=>{this.animation.testMode=e.target.value;this.setPreview(true);};
+    panel.querySelector('[data-pause-test]').onclick=e=>{this.animation.playing=!this.animation.playing;e.target.textContent=this.animation.playing?'Pausar':'Continuar';};
+    panel.querySelector('[data-orbit]').oninput=e=>{this.orbitYaw=THREE.MathUtils.degToRad(+e.target.value);this.view='orbit';this.focus();};
     panel.querySelector('[data-save]').onclick=()=>this.save().catch(e=>{this.status.textContent=e.message;});
     this.overlay=document.createElement('div');this.overlay.id='rig-points';this.overlay.hidden=true;document.body.append(this.overlay);
     const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');this.overlay.append(svg);this.lines=new Map();this.dots=new Map();
@@ -210,7 +218,8 @@ export class AleijadinhoRigEditor {
     this.onResize=()=>{if(this.editing)this.focus();};addEventListener('resize',this.onResize);
     this.onKeyDown=e=>{if(this.editing&&e.code==='Escape'){e.preventDefault();e.stopPropagation();this.close();}};addEventListener('keydown',this.onKeyDown,true);
     const help=[...panel.querySelectorAll('p')].find(p=>!p.hasAttribute('data-rig-info'));for(const node of [panel.querySelector('[data-group]').parentElement,this.select.parentElement,this.readout,panel.querySelector('.rig-coordinates'),panel.querySelector('[data-frame]').parentElement])panel.insertBefore(node,help);
-    const scroll=document.createElement('div');scroll.className='rig-scroll';const footer=document.createElement('div');footer.className='rig-footer';footer.append(panel.querySelector('[data-save]'),this.status);for(const child of [...panel.children])if(!['HEADER','H2'].includes(child.tagName))scroll.append(child);panel.append(scroll,footer);
+    const scroll=document.createElement('div');scroll.className='rig-scroll';const footer=document.createElement('div');footer.className='rig-footer';footer.append(panel.querySelector('.rig-test-controls'),panel.querySelector('[data-save]'),this.status);for(const child of [...panel.children])if(!['HEADER','H2'].includes(child.tagName))scroll.append(child);panel.append(scroll,footer);
+    this.orbit=new RigOrbitControls(this);
     this.fillPoints();
   }
 }

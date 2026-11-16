@@ -241,7 +241,7 @@ export async function buildStudyRoom(group, { galleryBrightness }) {
 
 	// --- marcenaria (cor por vértice, 1 draw): rodapé, guarda-pó, cornija, molduras
 	const woodMat = shell({ map: polyTex('dark_wood', 'diff', 1.2, 1.2, 1.2, true), normalMap: polyTex('dark_wood', 'nor_gl', 1.2, 1.2, 1.2), roughness: .5, vertexColors: true, side: THREE.DoubleSide }, .1)
-	const wood = [], gold = [], paint = [], books = [], marble = []
+	const wood = [], shelfWood = [], gold = [], paint = [], books = [], marble = []
 	for (const sx of [ -1, 1 ]) {
 		wood.push(box(.04, .2, D, [ sx * ( W - .02 ), .1, ( ZF + ZB ) / 2 ], '#6a4a36'))
 		wood.push(box(.06, .07, D, [ sx * ( W - .03 ), 1.16, ( ZF + ZB ) / 2 ], '#7a5842'))
@@ -275,8 +275,8 @@ export async function buildStudyRoom(group, { galleryBrightness }) {
 	}
 	
 	// estantes embutidas flanqueando a janela
-	bookcase(wood, books, { x: -1.81, z: ZB + .21, w: 1.62, h: 2.62, seed: 11 })
-	bookcase(wood, books, { x: 1.835, z: ZB + .21, w: 1.57, h: 2.62, seed: 29, shelves: 6 })
+	bookcase(shelfWood, books, { x: -1.795, z: ZB + .225, w: 1.62, h: 2.62, seed: 11 })
+	bookcase(shelfWood, books, { x: 1.82, z: ZB + .225, w: 1.57, h: 2.62, seed: 29, shelves: 6 })
 	// pilha de livros e livro aberto na escrivaninha
 	const stackBook = (w, h, d, p, r, tile) => { const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setX(k, ( tile + uv.getX(k) ) / SPINES); books.push(xf(g, p, r)) }
 	// texto à mão: página esquerda inteira, direita só no começo (ele ainda vai continuar escrevendo). Topo da página fica para o lado da janela.
@@ -330,6 +330,9 @@ export async function buildStudyRoom(group, { galleryBrightness }) {
 	const globeM = new THREE.MeshStandardNodeMaterial({ color: '#f1e6cf', roughness: .35, transparent: true, opacity: .96 }); globeM.emissiveNode = vec3(1, .83, .55).mul(.75).mul(galleryBrightness)
 	const globe = new THREE.Mesh(new THREE.SphereGeometry(.125, 26, 18), globeM); globe.scale.set(1, 1.1, 1); globe.position.set(PL.x, PL.globeY, PL.z); room.add(globe)
 	const mergeInto = (arr, material, opts) => { if (arr.length) add(mergeGeometries(arr.map(g => g.index ? g.toNonIndexed() : g), false), material, opts) }
+	// Separate the inset shelves from wall trim; avoid grazing-angle specular shimmer.
+	const shelfMat = shell({ map: woodMat.map, normalMap: woodMat.normalMap, normalScale: new THREE.Vector2(.25, .25), roughness: .82, vertexColors: true }, .1)
+	mergeInto(shelfWood, shelfMat, { cast: true })
 	mergeInto(wood, woodMat, { cast: true })
 	mergeInto(paint, paintMat, { cast: true })
 	mergeInto(marble, mat({ color: '#ffffff', roughness: .35, vertexColors: true }, .1))

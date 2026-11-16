@@ -15,6 +15,7 @@ import { repairTorsoSkinWeights } from './TorsoSkinWeights.js';
 import { buildStudyRoom } from './PeriodRoom.js';
 import { buildAleijadinhoRoom } from './AleijadinhoRoom.js';
 import { buildReboucasRoom } from './ReboucasRoom.js';
+import { buildAdhemarRoom } from './AdhemarRoom.js';
 import { BAY_LENGTH, applyReceivedLighting, galleryBrightness } from './Gallery.js';
 
 // ---------------------------------------------------------------------------------------------
@@ -148,7 +149,12 @@ const REBOUCAS = {
 }
 // Escurecimento da pele de cada personagem (a pele vem pintada na textura; o shader escurece só os pixels de pele, mantendo detalhe).
 export const SKIN = { aleijadinho: .78 } // 1 = sem mudança
-export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS ]
+// -------- Adhemar da Silva: pista azul de salto triplo (corre, salta na areia, levanta, repete) --------
+const ADHEMAR = {
+	id: 'adhemar', name: 'Adhemar da Silva', dates: '1927 · 2001', role: 'Atleta, bicampeão olímpico do salto triplo',
+	model: '/models/rig-studio/adhemar-running.glb', height: 1.78, stand: { x: -1.2, z: 0.35 }, facing: Math.PI / 2, room: buildAdhemarRoom, lightScale: .12, openBack: true, maxX: 44,
+}
+export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS, ADHEMAR ]
 
 // Quem aparece onde.
 //   people = quantas pessoas existem na galeria (1, 2, 3…), startSide = lado da primeira (-1 esquerda, 1 direita).
@@ -217,8 +223,21 @@ export class CharacterSets {
 				const region = /cabe/i.test( meshName ) || id === 'aleijadinho' ? float( 1 ) : smoothstep( .76, .84, positionGeometry.x.abs() )
 				const lum = dot( c, vec3( .299, .587, .114 ) ); c = mix( c, vec3( 1, .58, .36 ).mul( lum ).mul( d * 1.6 ), skin.mul( region ) ) // troca a cor da pele por marrom (mesma luminosidade x d), mantendo o detalhe
 			}
-				m.colorNode = c;
-			if ( id !== 'machado' ) m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
+			if ( id === 'reboucas' ) {
+				const original = c;
+				const lum = dot( original, vec3( .299, .587, .114 ) );
+				const head = /\.011$/.test( src.name );
+				const skin = smoothstep( .025, .12, original.r.sub( original.g ) ).mul( smoothstep( .04, .16, original.r.sub( original.b ) ) ).mul( smoothstep( .055, .14, lum ) );
+				const region = head ? float( 1 ) : smoothstep( .76, .88, positionGeometry.x.abs() );
+				c = original.mul( mix( vec3( 1 ), vec3( .20, .30, .42 ), skin.mul( region ) ) );
+				if ( head ) {
+					// Dark texels describe hair, beard, brows and pupils: retain relief in neutral black.
+					const hair = float( 1 ).sub( smoothstep( .045, .105, lum ) );
+					c = mix( c, vec3( lum.mul( .12 ) ), hair );
+				}
+			}
+			m.colorNode = c;
+			if ( id !== 'machado' && id !== 'reboucas' ) m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
 		}		applyReceivedLighting( m ); this.characterMaterials.set( src, m ); return m
 	}
 	placeCharacter( e, gltf ) {
@@ -238,7 +257,7 @@ export class CharacterSets {
 		}
 		if ( def.id === 'reboucas' ) { // engenheiro sentado no banquinho, desenhando na prancheta
 			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'reboucas', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
-			e.animation = e.room.mode === 'teodolito' ? new ReboucasObserving( e, gltf, e.room.theo, e.room.room, def.height ) : new ReboucasDrawing( e, gltf, e.room.seat, def.height )
+			e.animation = e.room.mode === 'teodolito' ? new ReboucasObserving( e, gltf, e.room.theo, e.room.room, def.height, e.room.hands, e.room.hooks ) : new ReboucasDrawing( e, gltf, e.room.seat, def.height )
 			this.dimensions[ def.id ] = { height: def.height, animated: true }
 			return
 		}
