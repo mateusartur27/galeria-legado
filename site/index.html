@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#17110e">
+  <meta name="description" content="Passeio imersivo pela Galeria de Histórias da FANS.">
+  <title>Galeria de Histórias da FANS</title>
+  <link rel="stylesheet" href="galeria.css?v=7">
+  <script defer src="hls.min.js"></script>
+  <script defer src="player.js?v=6"></script>
+</head>
+<body>
+  <main id="passeio" hidden aria-label="Passeio imersivo pela Galeria de Histórias da FANS">
+    <video id="filme" playsinline loop poster="poster.webp" preload="metadata" aria-label="Vídeo da galeria"></video>
+    <div id="marca-tour">Galeria de Histórias da FANS</div>
+    <aside id="perfil-tour" hidden aria-label="Perfil em exibição">
+      <header id="perfil-identidade">
+        <div id="perfil-anos"></div>
+        <h2 id="perfil-nome"></h2>
+        <div id="perfil-titulo"></div>
+      </header>
+      <p id="perfil-texto" hidden></p>
+    </aside>
+    <nav aria-label="Controles do passeio">
+      <button id="anterior" type="button"><span aria-hidden="true" class="icone">←</span> <span>Anterior</span></button>
+      <button id="proximo" type="button"><span>Próximo</span> <span aria-hidden="true" class="icone">→</span></button>
+      <button id="pausar" type="button"><span class="pausa-icone" aria-hidden="true"></span><span id="pausa-texto">Pausar</span></button>
+      <button id="sair" type="button"><span aria-hidden="true" class="icone">×</span> Sair</button>
+    </nav>
+  </main>
+  <section id="entrada" aria-labelledby="titulo">
+    <div>
+      <h1 id="titulo">Galeria de Histórias da FANS</h1>
+      <p>Conheça dez personalidades negras que marcaram a história do Brasil.</p>
+      <button id="iniciar" type="button"><span aria-hidden="true" class="icone">▶</span> Iniciar tour</button>
+    </div>
+    <footer class="rodape-entrada"><a href="/creditos">Créditos e licenças</a></footer>
+  </section>
+  <p id="status" role="status" hidden></p>
+</body>
+</html>

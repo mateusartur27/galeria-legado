@@ -1,0 +1,708 @@
+{
+  "schema": "character-rig/v2",
+  "createdAt": "2026-11-18T13:57:19.208Z",
+  "characterId": "nilo",
+  "character": "Nilo",
+  "model": "/models/rig-studio/nilo.glb",
+  "source": "Nilo.blend",
+  "normalization": {
+    "sourceHeight": 2.2794259167200295,
+    "sourceCenter": [
+      0.0008344054222106934,
+      -0.9946873784065247,
+      -0.0013545230031013489
+    ],
+    "sourceSpace": "GLTF +Y up",
+    "previewHeight": 1.75
+  },
+  "mode": "joint-layout",
+  "units": "source-model-units",
+  "coordinateSpace": "holder-local +Y up +Z face",
+  "metersPerUnit": 1.75,
+  "bones": [
+    {
+      "name": "Hips",
+      "sourceName": "Hips",
+      "parent": null,
+      "position": [
+        0,
+        0.48,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        0.48,
+        0
+      ],
+      "modelHead": [
+        0,
+        0.48,
+        0
+      ]
+    },
+    {
+      "name": "Spine",
+      "sourceName": "Spine",
+      "parent": "Hips",
+      "position": [
+        0,
+        0.10000000000000014,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        0.09999999999999998,
+        0
+      ],
+      "modelHead": [
+        0,
+        0.5800000000000001,
+        0
+      ]
+    },
+    {
+      "name": "LeftUpLeg",
+      "sourceName": "LeftUpLeg",
+      "parent": "Hips",
+      "position": [
+        0.07,
+        2.220446049250313e-16,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0.07,
+        0,
+        0
+      ],
+      "modelHead": [
+        0.07,
+        0.48000000000000015,
+        0
+      ]
+    },
+    {
+      "name": "RightUpLeg",
+      "sourceName": "RightUpLeg",
+      "parent": "Hips",
+      "position": [
+        -0.07,
+        2.220446049250313e-16,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        -0.07,
+        0,
+        0
+      ],
+      "modelHead": [
+        -0.07,
+        0.48000000000000015,
+        0
+      ]
+    },
+    {
+      "name": "Spine1",
+      "sourceName": "Spine1",
+      "parent": "Spine",
+      "position": [
+        0,
+        0.1000000000000002,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        0.10000000000000009,
+        0
+      ],
+      "modelHead": [
+        0,
+        0.6800000000000002,
+        0
+      ]
+    },
+    {
+      "name": "LeftLeg",
+      "sourceName": "LeftLeg",
+      "parent": "LeftUpLeg",
+      "position": [
+        0,
+        -0.21000000000000624,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        -0.20999999999999996,
+        0
+      ],
+      "modelHead": [
+        0.07,
+        0.2699999999999939,
+        0
+      ]
+    },
+    {
+      "name": "RightLeg",
+      "sourceName": "RightLeg",
+      "parent": "RightUpLeg",
+      "position": [
+        0,
+        -0.21000000000000624,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        -0.20999999999999996,
+        0
+      ],
+      "modelHead": [
+        -0.07,
+        0.2699999999999939,
+        0
+      ]
+    },
+    {
+      "name": "Spine2",
+      "sourceName": "Spine2",
+      "parent": "Spine1",
+      "position": [
+        0,
+        0.08999999999999964,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        0.08999999999999997,
+        0
+      ],
+      "modelHead": [
+        0,
+        0.7699999999999998,
+        0
+      ]
+    },
+    {
+      "name": "LeftFoot",
+      "sourceName": "LeftFoot",
+      "parent": "LeftLeg",
+      "position": [
+        0,
+        -0.20999999999999383,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        -0.21000000000000002,
+        0
+      ],
+      "modelHead": [
+        0.07,
+        0.06000000000000008,
+        0
+      ]
+    },
+    {
+      "name": "RightFoot",
+      "sourceName": "RightFoot",
+      "parent": "RightLeg",
+      "position": [
+        0,
+        -0.20999999999999383,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        -0.21000000000000002,
+        0
+      ],
+      "modelHead": [
+        -0.07,
+        0.06000000000000008,
+        0
+      ]
+    },
+    {
+      "name": "Neck",
+      "sourceName": "Neck",
+      "parent": "Spine2",
+      "position": [
+        0,
+        0.09000000000000041,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        0.08999999999999997,
+        0
+      ],
+      "modelHead": [
+        0,
+        0.8600000000000001,
+        0
+      ]
+    },
+    {
+      "name": "LeftShoulder",
+      "sourceName": "LeftShoulder",
+      "parent": "Spine2",
+      "position": [
+        0.04,
+        0.030000000000000693,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0.04,
+        0.030000000000000027,
+        0
+      ],
+      "modelHead": [
+        0.04,
+        0.8000000000000004,
+        0
+      ]
+    },
+    {
+      "name": "LeftToeBase",
+      "sourceName": "LeftToeBase",
+      "parent": "LeftFoot",
+      "position": [
+        0,
+        -0.03499999999999989,
+        0.06
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        -0.034999999999999996,
+        0.06
+      ],
+      "modelHead": [
+        0.07,
+        0.025000000000000192,
+        0.06
+      ]
+    },
+    {
+      "name": "RightShoulder",
+      "sourceName": "RightShoulder",
+      "parent": "Spine2",
+      "position": [
+        -0.04,
+        0.030000000000000693,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        -0.04,
+        0.030000000000000027,
+        0
+      ],
+      "modelHead": [
+        -0.04,
+        0.8000000000000004,
+        0
+      ]
+    },
+    {
+      "name": "RightToeBase",
+      "sourceName": "RightToeBase",
+      "parent": "RightFoot",
+      "position": [
+        0,
+        -0.03499999999999989,
+        0.06
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        -0.034999999999999996,
+        0.06
+      ],
+      "modelHead": [
+        -0.07,
+        0.025000000000000192,
+        0.06
+      ]
+    },
+    {
+      "name": "Head",
+      "sourceName": "Head",
+      "parent": "Neck",
+      "position": [
+        0,
+        0.04999999999999938,
+        0
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0,
+        0.050000000000000044,
+        0
+      ],
+      "modelHead": [
+        0,
+        0.9099999999999996,
+        0
+      ]
+    },
+    {
+      "name": "LeftArm",
+      "sourceName": "LeftArm",
+      "parent": "LeftShoulder",
+      "position": [
+        0.05282485390667995,
+        -0.00032279830946735366,
+        -0.0042700754284586495
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0.1,
+        -0.020000000000000018,
+        0
+      ],
+      "modelHead": [
+        0.09282485390667995,
+        0.799677201690533,
+        -0.0042700754284586495
+      ]
+    },
+    {
+      "name": "RightArm",
+      "sourceName": "RightArm",
+      "parent": "RightShoulder",
+      "position": [
+        -0.0492343058200387,
+        -0.004337760427483572,
+        -0.012582794145248448
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        -0.1,
+        -0.020000000000000018,
+        0
+      ],
+      "modelHead": [
+        -0.0892343058200387,
+        0.7956622395725168,
+        -0.012582794145248448
+      ]
+    },
+    {
+      "name": "LeftForeArm",
+      "sourceName": "LeftForeArm",
+      "parent": "LeftArm",
+      "position": [
+        0.08978895817515108,
+        -0.01707178047616975,
+        0.006439391312727289
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0.12,
+        -0.010000000000000009,
+        0
+      ],
+      "modelHead": [
+        0.18261381208183103,
+        0.7826054212143633,
+        0.0021693158842686394
+      ]
+    },
+    {
+      "name": "RightForeArm",
+      "sourceName": "RightForeArm",
+      "parent": "RightArm",
+      "position": [
+        -0.10504621734710369,
+        -0.018489054265475202,
+        0.0024035546299524067
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        -0.12,
+        -0.010000000000000009,
+        0
+      ],
+      "modelHead": [
+        -0.19428052316714237,
+        0.7771731853070416,
+        -0.010179239515296042
+      ]
+    },
+    {
+      "name": "LeftHand",
+      "sourceName": "LeftHand",
+      "parent": "LeftForeArm",
+      "position": [
+        0.09592140278260136,
+        -0.012835665466944257,
+        0.00382628696385063
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        0.12,
+        -0.010000000000000009,
+        0
+      ],
+      "modelHead": [
+        0.2785352148644324,
+        0.769769755747419,
+        0.005995602848119269
+      ]
+    },
+    {
+      "name": "RightHand",
+      "sourceName": "RightHand",
+      "parent": "RightForeArm",
+      "position": [
+        -0.09221792709278298,
+        -0.017173185307041927,
+        0.0004559107780734324
+      ],
+      "quaternion": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "originalPosition": [
+        -0.12,
+        -0.010000000000000009,
+        0
+      ],
+      "modelHead": [
+        -0.2864984502599254,
+        0.7599999999999998,
+        -0.00972332873722261
+      ]
+    }
+  ],
+  "layout": null,
+  "savedBy": "character-rig-editor"
+}

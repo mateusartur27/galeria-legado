@@ -4,17 +4,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { BAY_LENGTH, applyReceivedLighting, galleryBrightness } from './Gallery.js';
 
-const IDS=['bronze_ray_statue','bronze_whale_statue','antique_ceramic_vase_01','Chandelier_02'];
-const mod=(a,b)=>((a%b)+b)%b;
+const CHANDELIER='Chandelier_02';
 export class CuratedAssets{
  constructor(gallery){this.gallery=gallery;this.groups=[];this.loaded=[];this.dimensions={};this.obj=new THREE.Object3D();this.materialCache=new Map();}
  async load(){
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   // Small, local payloads are fetched progressively; each file is decoded only once.
-  for(const id of IDS){
-   const gltf=await loader.loadAsync(`/models/curated/${id}.glb`);
-   this.install(id,gltf.scene);this.loaded.push(id);this.update(this.gallery.progress);
-  }
+  const gltf=await loader.loadAsync(`/models/curated/${CHANDELIER}.glb`);
+  this.install(CHANDELIER,gltf.scene);this.loaded.push(CHANDELIER);this.update(this.gallery.progress);
  }
  material(source){
   if(/bulb/i.test(source.name))return this.gallery.materials.chandelier;
@@ -25,8 +22,7 @@ export class CuratedAssets{
  }
  install(id,root){
   root.updateMatrixWorld(true);const bbox=new THREE.Box3().setFromObject(root),size=bbox.getSize(new THREE.Vector3()),center=bbox.getCenter(new THREE.Vector3());
-  const pendant=id==='Chandelier_02';
-  const scale=pendant?Math.min(2.05/Math.max(size.x,size.z),1.85/size.y):Math.min(1.28/Math.max(size.x,size.z),1.45/size.y);
+  const scale=Math.min(2.05/Math.max(size.x,size.z),1.85/size.y);
   this.dimensions[id]={width:size.x*scale,depth:size.z*scale,height:size.y*scale,scale};
   const pieces=[];
   root.traverse(node=>{
@@ -36,22 +32,17 @@ export class CuratedAssets{
     const a=geo.getAttribute(name);if(!a.normalized&&a.array instanceof Float32Array)continue;
     const f=new Float32Array(a.count*a.itemSize);for(let i=0;i<a.count;i++)for(let j=0;j<a.itemSize;j++)f[i*a.itemSize+j]=a.getComponent(i,j);geo.setAttribute(name,new THREE.BufferAttribute(f,a.itemSize));
    }
-   geo.applyMatrix4(node.matrixWorld);geo.translate(-center.x,pendant?-bbox.max.y:-bbox.min.y,-center.z);geo.scale(scale,scale,scale);geo.computeBoundingBox();
-   const mesh=new THREE.InstancedMesh(geo,this.material(node.material),this.gallery.count*2);mesh.name=`asset-${id}`;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.gallery.scene.add(mesh);pieces.push(mesh);
+   geo.applyMatrix4(node.matrixWorld);geo.translate(-center.x,-bbox.max.y,-center.z);geo.scale(scale,scale,scale);geo.computeBoundingBox();
+   const mesh=new THREE.InstancedMesh(geo,this.material(node.material),this.gallery.count);mesh.name=`asset-${id}`;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.gallery.scene.add(mesh);pieces.push(mesh);
   });
-  this.groups.push({id,pendant,pieces});
+  this.groups.push({id,pieces});
  }
  update(progress){
-  const g=this.gallery,phase=progress%BAY_LENGTH,base=Math.floor(progress/BAY_LENGTH)-g.behind;
+  const g=this.gallery,phase=progress%BAY_LENGTH;
   for(const group of this.groups){let index=0;
    for(let i=0;i<g.count;i++){
-    const logical=base+i,z=-(i-g.behind)*BAY_LENGTH+phase;
-    if(group.pendant){this.place(group,index++,0,5.7,z,0);continue;}
-    for(const side of [-1,1]){
-     if(IDS[mod(logical*2+(side===1?1:0),3)]!==group.id)continue;
-     const objectZ=z+BAY_LENGTH/2-(side===1?BAY_LENGTH/2:0);
-     this.place(group,index++,side*3.65,.72,objectZ,side*Math.PI/2);
-    }
+    const z=-(i-g.behind)*BAY_LENGTH+phase;
+    this.place(group,index++,0,5.7,z,0);
    }
    for(const mesh of group.pieces){mesh.count=index;mesh.instanceMatrix.needsUpdate=true;}
   }

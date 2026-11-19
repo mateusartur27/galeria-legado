@@ -1,0 +1,370 @@
+[
+  {
+    "id": "aleijadinho",
+    "name": "Aleijadinho",
+    "model": "/models/rig-studio/aleijadinho.glb",
+    "height": 1.55,
+    "source": "Rigs/Aleijadinho - Rig.blend",
+    "rigged": true,
+    "bones": [
+      "Hips",
+      "Spine",
+      "Spine1",
+      "Spine2",
+      "Neck",
+      "Head",
+      "LeftShoulder",
+      "LeftArm",
+      "LeftForeArm",
+      "LeftHand",
+      "RightShoulder",
+      "RightArm",
+      "RightForeArm",
+      "RightHand",
+      "LeftUpLeg",
+      "LeftLeg",
+      "LeftFoot",
+      "LeftToeBase",
+      "RightUpLeg",
+      "RightLeg",
+      "RightFoot",
+      "RightToeBase"
+    ],
+    "bounds": [
+      [
+        -1.0442291498184204,
+        1.0466432571411133
+      ],
+      [
+        -0.2660280764102936,
+        0.25685247778892517
+      ],
+      [
+        -0.995094358921051,
+        1.372594952583313
+      ]
+    ]
+  },
+  {
+    "id": "reboucas",
+    "name": "André Rebouças",
+    "model": "/models/rig-studio/reboucas.glb",
+    "height": 1.75,
+    "source": "Rigs/André Rebouças - Rig.blend",
+    "rigged": true,
+    "bones": [
+      "Hips",
+      "Spine",
+      "Spine1",
+      "Spine2",
+      "Neck",
+      "Head",
+      "LeftShoulder",
+      "LeftArm",
+      "LeftForeArm",
+      "LeftHand",
+      "LeftHandThumb1",
+      "LeftHandThumb2",
+      "LeftHandThumb3",
+      "LeftHandIndex1",
+      "LeftHandIndex2",
+      "LeftHandIndex3",
+      "LeftHandMiddle1",
+      "LeftHandMiddle2",
+      "LeftHandMiddle3",
+      "LeftHandRing1",
+      "LeftHandRing2",
+      "LeftHandRing3",
+      "LeftHandPinky1",
+      "LeftHandPinky2",
+      "LeftHandPinky3",
+      "RightShoulder",
+      "RightArm",
+      "RightForeArm",
+      "RightHand",
+      "RightHandThumb1",
+      "RightHandThumb2",
+      "RightHandThumb3",
+      "RightHandIndex1",
+      "RightHandIndex2",
+      "RightHandIndex3",
+      "RightHandMiddle1",
+      "RightHandMiddle2",
+      "RightHandMiddle3",
+      "RightHandRing1",
+      "RightHandRing2",
+      "RightHandRing3",
+      "RightHandPinky1",
+      "RightHandPinky2",
+      "RightHandPinky3",
+      "LeftUpLeg",
+      "LeftLeg",
+      "LeftFoot",
+      "LeftToeBase",
+      "RightUpLeg",
+      "RightLeg",
+      "RightFoot",
+      "RightToeBase"
+    ],
+    "bounds": [
+      [
+        -0.9130328893661499,
+        0.913723886013031
+      ],
+      [
+        -0.23259493708610535,
+        0.22916114330291748
+      ],
+      [
+        -0.7696736454963684,
+        1.0400214195251465
+      ]
+    ]
+  },
+  {
+    "id": "machado",
+    "name": "Machado de Assis",
+    "model": "/models/rig-studio/machado.glb?v=hands-corrected-20261114",
+    "height": 1.72,
+    "source": "Rigs/Machado de Assis - Rig.blend",
+    "rigged": true,
+    "bones": [
+      "DEF-spine",
+      "DEF-spine.001",
+      "DEF-spine.002",
+      "DEF-spine.003",
+      "DEF-spine.004",
+      "DEF-spine.005",
+      "DEF-spine.006",
+      "DEF-thigh.L",
+      "DEF-thigh.L.001",
+      "DEF-shin.L",
+      "DEF-shin.L.001",
+      "DEF-foot.L",
+      "DEF-toe.L",
+      "DEF-thigh.R",
+      "DEF-thigh.R.001",
+      "DEF-shin.R",
+      "DEF-shin.R.001",
+      "DEF-foot.R",
+      "DEF-toe.R",
+      "DEF-f_index.01.L",
+      "DEF-f_index.02.L",
+      "DEF-f_index.03.L",
+      "DEF-f_middle.01.L",
+      "DEF-f_middle.02.L",
+      "DEF-f_middle.03.L",
+      "DEF-f_pinky.01.L",
+      "DEF-f_pinky.02.L",
+      "DEF-f_pinky.03.L",
+      "DEF-f_ring.01.L",
+      "DEF-f_ring.02.L",
+      "DEF-f_ring.03.L",
+      "DEF-thumb.01.L",
+      "DEF-thumb.02.L",
+      "DEF-thumb.03.L",
+      "DEF-shoulder.L",
+      "DEF-upper_arm.L",
+      "DEF-upper_arm.L.001",
+      "DEF-forearm.L",
+      "DEF-forearm.L.001",
+      "DEF-hand.L",
+      "DEF-f_index.01.R",
+      "DEF-f_index.02.R",
+      "DEF-f_index.03.R",
+      "DEF-f_middle.01.R",
+      "DEF-f_middle.02.R",
+      "DEF-f_middle.03.R",
+      "DEF-f_pinky.01.R",
+      "DEF-f_pinky.02.R",
+      "DEF-f_pinky.03.R",
+      "DEF-f_ring.01.R",
+      "DEF-f_ring.02.R",
+      "DEF-f_ring.03.R",
+      "DEF-thumb.01.R",
+      "DEF-thumb.02.R",
+      "DEF-thumb.03.R",
+      "DEF-shoulder.R",
+      "DEF-upper_arm.R",
+      "DEF-upper_arm.R.001",
+      "DEF-forearm.R",
+      "DEF-forearm.R.001",
+      "DEF-hand.R"
+    ],
+    "bounds": [
+      [
+        -0.9963817000389099,
+        0.9962491989135742
+      ],
+      [
+        -0.2691343426704407,
+        0.26818326115608215
+      ],
+      [
+        -0.9355583786964417,
+        1.3204982280731201
+      ]
+    ]
+  },
+  {
+    "id": "gloria",
+    "name": "Glória Maria",
+    "model": "/models/rig-studio/gloria-estatica.glb",
+    "height": 1.68,
+    "source": "Glória Maria.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.9953368902206421,
+        0.995832085609436
+      ],
+      [
+        -0.2188476026058197,
+        0.24946212768554688
+      ],
+      [
+        -0.889213502407074,
+        1.2302052974700928
+      ]
+    ]
+  },
+  {
+    "id": "pele",
+    "name": "Pelé",
+    "model": "/models/rig-studio/pele.glb",
+    "height": 1.73,
+    "source": "Pelé.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.9962871670722961,
+        0.9966139793395996
+      ],
+      [
+        -0.20408466458320618,
+        0.19748477637767792
+      ],
+      [
+        -0.8708074688911438,
+        1.223809003829956
+      ]
+    ]
+  },
+  {
+    "id": "luiz-gama",
+    "name": "Luiz Gama",
+    "model": "/models/rig-studio/luiz-gama.glb",
+    "height": 1.75,
+    "source": "Luiz Gama.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.9959293007850647,
+        0.9959763288497925
+      ],
+      [
+        -0.22254322469234467,
+        0.22047823667526245
+      ],
+      [
+        -0.7243386507034302,
+        1.0365629196166992
+      ]
+    ]
+  },
+  {
+    "id": "milton",
+    "name": "Milton Santos",
+    "model": "/models/rig-studio/milton.glb",
+    "height": 1.72,
+    "source": "Milton Santos.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.9566375613212585,
+        0.9573030471801758
+      ],
+      [
+        -0.25571051239967346,
+        0.25308093428611755
+      ],
+      [
+        -0.7794304490089417,
+        1.0571472644805908
+      ]
+    ]
+  },
+  {
+    "id": "nilo",
+    "name": "Nilo",
+    "model": "/models/rig-studio/nilo.glb",
+    "height": 1.75,
+    "source": "Nilo.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.9312037229537964,
+        0.9328725337982178
+      ],
+      [
+        -0.2301819771528244,
+        0.2328910231590271
+      ],
+      [
+        -0.9946873784065247,
+        1.284738540649414
+      ]
+    ]
+  },
+  {
+    "id": "pixinguinha",
+    "name": "Pixinguinha",
+    "model": "/models/rig-studio/pixinguinha.glb",
+    "height": 1.75,
+    "source": "Pixinguinha.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.9961795806884766,
+        0.9951253533363342
+      ],
+      [
+        -0.2349754422903061,
+        0.22597211599349976
+      ],
+      [
+        -0.9070079922676086,
+        1.183874487876892
+      ]
+    ]
+  },
+  {
+    "id": "adhemar",
+    "name": "Adhemar",
+    "model": "/models/rig-studio/adhemar-running.glb",
+    "height": 1.78,
+    "source": "Adhemar - nova montagem.blend",
+    "rigged": false,
+    "bones": [],
+    "bounds": [
+      [
+        -0.46967843174934387,
+        0.47501951456069946
+      ],
+      [
+        -0.2809157073497772,
+        0.279928058385849
+      ],
+      [
+        -0.9958966374397278,
+        1.373296856880188
+      ]
+    ]
+  }
+]

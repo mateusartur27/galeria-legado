@@ -9,3 +9,11 @@ versions/
 validation*.json
 .DS_Store
 .rec-frames/
+
+# Exportações de vídeo e configuração local
+/exports/
+/.gallery-build/
+.dev.vars
+.dev.vars.*
+.env
+.env.*

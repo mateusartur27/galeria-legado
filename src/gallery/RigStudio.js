@@ -13,7 +13,7 @@ const parentOf=name=>({Spine:'Hips',Spine1:'Spine',Spine2:'Spine1',Neck:'Spine2'
 export class RigStudio {
   constructor(game){this.game=game;this.sessions=new Map();this.editor=null;this.token=0;}
   async init(){
-    const r=await fetch('/models/rig-studio/catalog.json');if(!r.ok)throw new Error('Catálogo do estúdio indisponível');this.catalog=await r.json();
+    const r=await fetch('/models/rig-studio/catalog.json',{cache:'no-cache'});if(!r.ok)throw new Error('Catálogo do estúdio indisponível');this.catalog=await r.json();
     // Stable order, independent of the order in which preview models were exported.
     const order=['aleijadinho','machado','reboucas','adhemar','pele','gloria','luiz-gama','milton','nilo','pixinguinha'];this.catalog.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
     const button=document.createElement('button');button.id='rig-toggle';button.textContent='Rigs';button.title='Configurar rigs dos personagens';button.onclick=()=>this.editor?this.editor.open():this.select(this.initialId);document.querySelector('.controls').append(button);this.button=button;
@@ -62,11 +62,12 @@ export class RigStudio {
     for(const child of [...holder.children])sceneRoot.add(child);holder.add(sceneRoot);
     const restPose=[];sceneRoot.traverse(n=>{if(n.isBone)restPose.push([n,n.position.clone(),n.quaternion.clone(),n.scale.clone()]);});
     const live=this.game.gallery.sets.entries.find(e=>e.character.id===def.id)?.animation;
-    const clip=gltf.animations[0]??live?.clip??null,mixer=clip?new THREE.AnimationMixer(sceneRoot):null,action=clip?mixer.clipAction(clip).play():null;
+    const staticModel=def.id==='gloria';
+    const clip=staticModel?null:(gltf.animations[0]??live?.clip??null),mixer=clip?new THREE.AnimationMixer(sceneRoot):null,action=clip?mixer.clipAction(clip).play():null;
     const animation={entry:{character:def,group:home,room:{}},root:sceneRoot,holder,scale:def.height,editorPosition:[0,0,0],bones,restPose,referenceOnly,normalization:{sourceHeight:size.y,sourceCenter:[center.x,box.min.y,center.z],sourceSpace:'GLTF +Y up',previewHeight:def.height},clip,action,mixer,time:0,playing:false,testMode:'all',
       update(dt){if(this.rigEditor?.editing&&!this.rigEditor.preview)return;if(this.rigEditor?.preview){if(this.playing)this.time=(this.time+dt)%this.universal.duration(this.testMode);this.universal.pose(this.time,this.testMode);return;}this.rigEditor?.restorePoseOffsets();if(this.clip){if(this.playing)this.time=(this.time+dt)%this.clip.duration;this.mixer.setTime(this.time);this.poseSampler.sample(this.time);}else for(const [b,p,q,s] of this.restPose){b.position.copy(p);b.quaternion.copy(q);b.scale.copy(s);}this.rigEditor?.applyCalibration();},
     };
-    animation.poseSampler=new RigPoseSampler(animation);animation.universal=new UniversalRigTest(animation);
+    animation.poseSampler=new RigPoseSampler(animation);if(!staticModel)animation.universal=new UniversalRigTest(animation);
     return animation;
   }
   updateOverlay(){

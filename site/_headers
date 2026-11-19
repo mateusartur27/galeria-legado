@@ -1,0 +1,52 @@
+/video/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/video/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+
+/simplificado/video/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/simplificado/video/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+
+/video-loop/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/video-loop/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+/simplificado/video-loop/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/simplificado/video-loop/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+
+/video-diagonal/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/video-diagonal/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+/simplificado/video-diagonal/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/simplificado/video-diagonal/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+
+/video-alinhado/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/video-alinhado/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400
+/simplificado/video-alinhado/*.m3u8
+  Content-Type: application/vnd.apple.mpegurl
+  Cache-Control: public, max-age=300
+/simplificado/video-alinhado/*.ts
+  Content-Type: video/mp2t
+  Cache-Control: public, max-age=86400

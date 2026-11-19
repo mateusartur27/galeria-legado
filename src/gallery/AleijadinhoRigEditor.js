@@ -84,7 +84,7 @@ export class AleijadinhoRigEditor {
     const {scene,state}=this.game,a=this.animation;
     this.wasPlaying=a.playing;this.wasPaused=state.paused;this.oldOverride=window.__camOverride;
     this.oldBackground=scene.background;this.oldFog=scene.fog;
-    this.oldVisible=scene.children.map(n=>[n,n.visible]);for(const [n] of this.oldVisible)if(!n.isLight)n.visible=false;
+    this.oldVisible=scene.children.map(n=>[n,n.visible]);for(const [n] of this.oldVisible)if(!n.isLight||(this.id==='gloria'&&n.isPointLight))n.visible=false;
     this.oldParent=a.holder.parent;this.oldTransform={p:a.holder.position.clone(),q:a.holder.quaternion.clone(),s:a.holder.scale.clone()};
     this.studio=new THREE.Group();scene.add(this.studio);this.studio.add(a.holder);a.holder.position.fromArray(a.editorPosition??[0,.995*a.scale,0]);a.holder.quaternion.identity();
     this.tools=[a.mallet,a.chisel,...Object.values(a.bones).flatMap(b=>b.children.filter(c=>!c.isBone))].filter(Boolean);
@@ -125,7 +125,7 @@ export class AleijadinhoRigEditor {
   updateOverlay() {
     if(!this.editing)return;
     // O reciclador da galeria reativa os sets a cada quadro; o estúdio os oculta novamente.
-    for(const [n] of this.oldVisible)if(!n.isLight)n.visible=false;
+    for(const [n] of this.oldVisible)if(!n.isLight||(this.id==='gloria'&&n.isPointLight))n.visible=false;
     const {camera}=this.game;camera.updateMatrixWorld();this.animation.holder.updateWorldMatrix(true,true);
     const at=b=>{const p=b.getWorldPosition(new THREE.Vector3()).project(camera);return{x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2,z:p.z};};
     const positions=new Map(this.bones.map(b=>[b,at(b)]));
@@ -189,7 +189,9 @@ export class AleijadinhoRigEditor {
     this.coordinateInputs=[...panel.querySelectorAll('[data-axis]')];
     for(const [i,input] of this.coordinateInputs.entries())input.oninput=()=>{const v=input.valueAsNumber;if(!Number.isFinite(v))return;if(this.preview)this.setPreview(false);this.rest();const p=this.animation.holder.worldToLocal(this.animation.bones[this.selected].getWorldPosition(new THREE.Vector3()));p.setComponent(i,v/(this.animation.scale*100));this.setPoint(this.selected,this.animation.holder.localToWorld(p));};
     const chooser=panel.querySelector('[data-character]');for(const c of this.options.catalog??[{id:this.id,name:this.characterName}]){const o=document.createElement('option');o.value=c.id;o.textContent=c.name;chooser.append(o);}chooser.value=this.id;chooser.onchange=()=>this.options.onCharacterChange?.(chooser.value);
-    const fingers=this.bones.filter(b=>isFinger(b.name));panel.querySelector('[data-rig-info]').textContent=this.animation.referenceOnly?'Sem rig definitivo · teste com pesos provisórios.':`${this.bones.length} ossos · ${fingers.length?fingers.length+' articulações de dedos':'sem ossos individuais nos dedos'}`;
+    const canAnimate=!!(this.animation.universal||this.animation.clip);
+    panel.querySelector('.rig-test-controls').hidden=!canAnimate;
+    const fingers=this.bones.filter(b=>isFinger(b.name));panel.querySelector('[data-rig-info]').textContent=this.animation.referenceOnly?(canAnimate?'Sem rig definitivo · teste com pesos provisórios.':'Modelo estático · ajuste dos pontos do rig.'):`${this.bones.length} ossos · ${fingers.length?fingers.length+' articulações de dedos':'sem ossos individuais nos dedos'}`;
     for(const option of panel.querySelector('[data-group]').options)if(['left','right'].includes(option.value)&&!fingers.some(b=>fingerSide(b.name)===option.value))option.disabled=true;
     panel.querySelector('[data-group]').onchange=e=>{this.groupFilter=e.target.value;this.fillPoints();};
     for(const b of panel.querySelectorAll('[data-frame]'))b.onclick=()=>{this.frame=b.dataset.frame;this.zoom=1;panel.querySelector('.rig-zoom input').value=1;this.focus();};

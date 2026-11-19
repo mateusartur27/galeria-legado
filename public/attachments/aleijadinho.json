@@ -1,0 +1,181 @@
+{
+  "schema": "aleijadinho-tools/v1",
+  "characterId": "aleijadinho",
+  "createdAt": "2026-11-14T22:31:28.329Z",
+  "units": {
+    "position": "centimeters",
+    "rotation": "degrees",
+    "space": "parent-bone-local"
+  },
+  "items": [
+    {
+      "id": "mallet",
+      "bone": "RightHand",
+      "positionCm": [
+        -1.999999999999999,
+        -5.900000000000001,
+        2.3000000000000016
+      ],
+      "rotationDeg": [
+        0,
+        89.99999704244134,
+        0
+      ]
+    },
+    {
+      "id": "chisel",
+      "bone": "LeftHand",
+      "positionCm": [
+        0,
+        -2.9999999999999973,
+        -2.9999999999999996
+      ],
+      "rotationDeg": [
+        0.00008316991656576978,
+        -88.97696991217646,
+        0.00008169799908074713
+      ]
+    },
+    {
+      "id": "right-forearm-1",
+      "bone": "RightForeArm",
+      "positionCm": [
+        0,
+        3.9273648648648676,
+        0
+      ],
+      "rotationDeg": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "right-forearm-2",
+      "bone": "RightForeArm",
+      "positionCm": [
+        -1.3999999999999988,
+        14.000000000000012,
+        0.4000000000000003
+      ],
+      "rotationDeg": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "right-forearm-3",
+      "bone": "RightForeArm",
+      "positionCm": [
+        -1.299999999999999,
+        16.100000000000016,
+        0.7000000000000004
+      ],
+      "rotationDeg": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "right-hand-1",
+      "bone": "RightHand",
+      "positionCm": [
+        -2.999999999999999,
+        5.1,
+        0
+      ],
+      "rotationDeg": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "right-hand-2",
+      "bone": "RightHand",
+      "positionCm": [
+        -2.8999999999999986,
+        6.900000000000001,
+        0
+      ],
+      "rotationDeg": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "left-forearm-1",
+      "bone": "LeftForeArm",
+      "positionCm": [
+        0,
+        4.199999999999996,
+        0
+      ],
+      "rotationDeg": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "left-forearm-2",
+      "bone": "LeftHand",
+      "positionCm": [
+        2.2450845539180366,
+        -2.8999999999999995,
+        -1.8
+      ],
+      "rotationDeg": [
+        -5.000000000000052,
+        0,
+        -44.000000000000036
+      ]
+    },
+    {
+      "id": "left-forearm-3",
+      "bone": "LeftHand",
+      "positionCm": [
+        1.8721056686426312,
+        -3.900000000000001,
+        -1.7999999999999996
+      ],
+      "rotationDeg": [
+        -25.49999999999999,
+        -18.000000000000036,
+        -40.00000000000001
+      ]
+    },
+    {
+      "id": "left-hand-1",
+      "bone": "LeftHand",
+      "positionCm": [
+        2.0999999999999996,
+        -3.2999999999999963,
+        -1.0999999999999999
+      ],
+      "rotationDeg": [
+        1.7655625192200634e-31,
+        2.385416011097636e-15,
+        30.000000000000075
+      ]
+    },
+    {
+      "id": "left-hand-2",
+      "bone": "LeftHand",
+      "positionCm": [
+        1.9999999999999996,
+        -2.599999999999998,
+        -1.1999999999999997
+      ],
+      "rotationDeg": [
+        5.29668755766019e-31,
+        -4.770832022195275e-15,
+        29.999999999999996
+      ]
+    }
+  ],
+  "savedBy": "tool-attachment-editor"
+}

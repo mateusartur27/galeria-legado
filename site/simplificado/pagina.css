@@ -1,0 +1,10 @@
+:root{color-scheme:dark;background:#17110e;color:#fcf1df;font-family:"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(ellipse at 50% 0,#35251d,transparent 65%),#17110e}
+main{width:min(1260px,100%);margin:auto;padding:clamp(18px,4vw,48px)}
+header{border-left:2px solid #d8ae78;padding-left:15px;margin-bottom:clamp(18px,3vw,28px)}
+h1{font:500 clamp(25px,4.5vw,44px)/1.11 Georgia,serif;margin:0}
+header p{color:#d4bca4;margin:7px 0 0}
+video{width:100%;display:block;aspect-ratio:16/9;object-fit:contain;background:#100b09;border:1px solid #72513d;box-shadow:0 14px 54px #0006}
+a{display:inline-block;margin-top:16px;padding:8px 0;color:#f0ce9c;text-underline-offset:5px}
+a:focus-visible{outline:2px solid #f0ce9c;outline-offset:4px}

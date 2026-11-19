@@ -1,0 +1,78 @@
+.portrait-tour .topbar {
+	align-items: flex-start;
+	gap: 20px;
+}
+.portrait-tour .top-right,
+.portrait-tour .bottom,
+.portrait-tour #restore {
+	display: none;
+}
+.portrait-tour .brand small {
+	font-size: clamp(8px, 1vw, 11px);
+	letter-spacing: .045em;
+}
+.portrait-bio {
+	max-width: min(365px, 43vw);
+	text-align: right;
+	text-shadow: 0 1px 4px #111, 0 2px 12px #111;
+}
+.portrait-bio h2, .portrait-bio p {
+	margin: 0;
+}
+.portrait-bio h2 {
+	font: clamp(16px, 2.7vw, 29px) Georgia, serif;
+}
+.portrait-bio .portrait-title {
+	margin-top: 4px;
+	color: #efd29d;
+	font-size: clamp(10px, 1.25vw, 14px);
+	font-weight: 700;
+}
+.portrait-bio p:last-child {
+	margin-top: 7px;
+	font-size: clamp(10px, 1.2vw, 13px);
+	line-height: 1.4;
+}
+.portrait-editor {
+	position: fixed;
+	z-index: 5;
+	left: 16px;
+	bottom: 16px;
+	width: min(285px, calc(100vw - 32px));
+	padding: 14px;
+	background: #20272af2;
+	border: 1px solid #efd29d66;
+	border-radius: 9px;
+	font-size: 12px;
+}
+.portrait-editor h2 {
+	margin: 0 0 10px;
+	font: 18px Georgia, serif;
+}
+.portrait-editor label {
+	display: grid;
+	grid-template-columns: 66px minmax(0, 1fr);
+	align-items: center;
+	margin: 7px 0;
+}
+.portrait-editor input {
+	width: 100%;
+	accent-color: #efd29d;
+}
+.portrait-editor select, .portrait-editor button {
+	color: #fff8e9;
+	background: #323c41;
+	border: 1px solid #efd29d55;
+	border-radius: 4px;
+	padding: 6px;
+}
+.portrait-editor-actions {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 10px;
+}
+.portrait-editor output {
+	display: block;
+	min-height: 1em;
+	margin-top: 6px;
+}

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "milton",
+    "nome": "Milton Santos",
+    "anos": "1926–2001",
+    "titulo": "Referência mundial da geografia",
+    "duracao": 29,
+    "basico": "Considerado um dos maiores geógrafos do mundo, destacou-se por seus estudos sobre território, sociedade e globalização. Foi o primeiro latino-americano a receber o Prêmio Vautrin Lud, conhecido como o Nobel da Geografia.",
+    "textos": [
+      "Milton Santos renovou a geografia humana ao estudar como as desigualdades aparecem nas cidades e nos territórios. Em 1994, foi o primeiro latino-americano a receber o Prêmio Vautrin Lud, conhecido como o Nobel da Geografia.",
+      "Exilado após o golpe de 1964, lecionou e pesquisou em vários países. Em Por uma Outra Globalização, explicou como os benefícios da integração mundial se concentram nas mãos de poucos e defendeu outras formas de organizar a sociedade."
+    ]
+  },
+  {
+    "id": "luizgama",
+    "nome": "Luiz Gama",
+    "anos": "1830–1882",
+    "titulo": "Abolicionista e defensor da liberdade",
+    "duracao": 29,
+    "basico": "Vendido como escravo aos 10 anos, conquistou sua liberdade e tornou-se advogado autodidata, jornalista e poeta. Foi um dos maiores abolicionistas brasileiros, utilizando a Justiça para libertar centenas de pessoas escravizadas.",
+    "textos": [
+      "Nascido livre em Salvador, Luiz Gama foi vendido ilegalmente aos dez anos. Aprendeu a ler e a escrever e recuperou a própria liberdade. Tornou-se uma das maiores lideranças do abolicionismo brasileiro.",
+      "Autodidata em direito, usou os tribunais para libertar centenas de pessoas escravizadas. Na imprensa e no livro Primeiras Trovas Burlescas de Getulino, expôs com sátira as contradições de uma sociedade que vivia da escravidão."
+    ]
+  },
+  {
+    "id": "reboucas",
+    "nome": "André Rebouças",
+    "anos": "1838–1898",
+    "titulo": "Engenheiro e abolicionista",
+    "duracao": 29,
+    "basico": "Um dos mais notáveis engenheiros brasileiros do século XIX, destacou-se por projetos de infraestrutura e modernização do país. Também foi um importante abolicionista e defensor do acesso à terra pela população negra.",
+    "textos": [
+      "Um dos engenheiros mais importantes do Brasil no século XIX, André Rebouças trabalhou na modernização de portos e em projetos de abastecimento de água. Também lecionou na Escola Politécnica do Rio de Janeiro.",
+      "Aliado de Joaquim Nabuco na luta abolicionista, defendeu o acesso à terra para quem saísse da escravidão. Via na pequena propriedade um caminho para que as famílias libertas pudessem viver do próprio trabalho com autonomia."
+    ]
+  },
+  {
+    "id": "aleijadinho",
+    "nome": "Aleijadinho",
+    "anos": "c. 1738–1814",
+    "titulo": "Mestre do barroco mineiro",
+    "duracao": 29,
+    "basico": "Filho de uma mulher escravizada e de um português, tornou-se o maior expoente do barroco brasileiro. Mesmo com limitações físicas, produziu obras extraordinárias, como os Doze Profetas de Congonhas.",
+    "textos": [
+      "Antônio Francisco Lisboa, o Aleijadinho, era filho de uma mulher escravizada e de um mestre de obras português. Tornou-se o nome mais reconhecido do barroco brasileiro, com trabalhos em igrejas de Minas Gerais.",
+      "Em Congonhas, criou com seus auxiliares os Doze Profetas em pedra-sabão e as esculturas em madeira dos Passos da Paixão. O conjunto do Santuário do Bom Jesus de Matosinhos é reconhecido pela UNESCO como Patrimônio Mundial."
+    ]
+  },
+  {
+    "id": "gloria",
+    "nome": "Glória Maria",
+    "anos": "1949–2023",
+    "titulo": "Pioneira do telejornalismo brasileiro",
+    "duracao": 34,
+    "basico": "Uma das maiores jornalistas da televisão brasileira, rompeu barreiras raciais e foi pioneira nas transmissões televisivas ao vivo. Tornou-se mundialmente viajada e reconhecida por suas reportagens internacionais e experiências culturais.",
+    "textos": [
+      "Glória Maria rompeu barreiras raciais no telejornalismo brasileiro. Estreou como repórter em 1971, na cobertura do desabamento do Elevado Paulo de Frontin, no Rio. Foi a primeira repórter a entrar ao vivo e em cores no Jornal Nacional.",
+      "No Fantástico e no Globo Repórter, levou o público a conhecer de perto culturas de vários países. Seu jeito de participar das experiências que filmava tornou-se uma marca da televisão brasileira e abriu caminho para outras jornalistas negras."
+    ]
+  },
+  {
+    "id": "machado",
+    "nome": "Machado de Assis",
+    "anos": "1839–1908",
+    "titulo": "Um dos maiores escritores da língua portuguesa",
+    "duracao": 29,
+    "basico": "Considerado um dos maiores escritores da língua portuguesa, foi fundador e primeiro presidente da Academia Brasileira de Letras. Conhecido como o Bruxo do Cosme Velho, escreveu clássicos como *Dom Casmurro* e *Memórias Póstumas de Brás Cubas*.",
+    "textos": [
+      "Joaquim Maria Machado de Assis, o Bruxo do Cosme Velho, escreveu Dom Casmurro, Memórias Póstumas de Brás Cubas e Quincas Borba. Também foi um dos fundadores e o primeiro presidente da Academia Brasileira de Letras.",
+      "Sua ironia expôs as vaidades e os interesses da elite brasileira do século XIX. Ao fazer narradores como Bentinho e Brás Cubas contarem suas próprias versões dos fatos, convidou o leitor a desconfiar de quem conta a história."
+    ]
+  },
+  {
+    "id": "adhemar",
+    "nome": "Adhemar da Silva",
+    "anos": "1927–2001",
+    "titulo": "Primeiro bicampeão olímpico do Brasil",
+    "duracao": 29,
+    "basico": "Primeiro brasileiro bicampeão olímpico, conquistou medalhas de ouro no salto triplo em 1952 e 1956. Quebrou cinco vezes o recorde mundial e eternizou seu nome na história do atletismo.",
+    "textos": [
+      "Adhemar Ferreira da Silva foi o primeiro brasileiro a conquistar dois ouros olímpicos. Venceu o salto triplo em Helsinque, em 1952, e em Melbourne, em 1956, e estabeleceu cinco recordes mundiais ao longo da carreira.",
+      "Em Helsinque, quebrou duas vezes o recorde mundial na mesma final. Em 1955, nos Jogos Pan-Americanos da Cidade do México, chegou a 16,56 metros. Seus resultados fizeram dele uma referência internacional do atletismo brasileiro."
+    ]
+  },
+  {
+    "id": "nilo",
+    "nome": "Nilo Peçanha",
+    "anos": "1867–1924",
+    "titulo": "Pioneiro do ensino profissional",
+    "duracao": 29,
+    "basico": "Considerado o primeiro presidente negro do Brasil, governou entre 1909 e 1910. Foi pioneiro na expansão do ensino profissionalizante, criando as escolas que deram origem aos atuais Institutos Federais.",
+    "textos": [
+      "Considerado o primeiro presidente negro do Brasil, Nilo Peçanha assumiu o cargo em 1909 após a morte de Afonso Pena. Governou até 1910, num período em que o acesso ao ensino profissional era restrito.",
+      "Em 1909, criou por decreto as Escolas de Aprendizes Artífices, que ofereciam formação gratuita para jovens de famílias pobres. As 19 escolas lançaram as bases da rede federal de educação profissional da qual fazem parte os atuais Institutos Federais."
+    ]
+  },
+  {
+    "id": "pixinguinha",
+    "nome": "Pixinguinha",
+    "anos": "1897–1973",
+    "titulo": "Mestre do choro brasileiro",
+    "duracao": 29,
+    "basico": "Considerado um dos maiores gênios da música brasileira, foi compositor, flautista e saxofonista. Revolucionou o choro e deixou obras marcantes, como *Carinhoso* e *Lamentos*.",
+    "textos": [
+      "Alfredo da Rocha Vianna Filho, o Pixinguinha, transformou o choro como compositor, flautista, saxofonista e arranjador. Escreveu clássicos como Carinhoso e Lamentos, que atravessaram gerações de músicos brasileiros.",
+      "Com os Oito Batutas, apresentou música brasileira em Paris em 1922. Nos discos e no rádio, seus arranjos deram novas possibilidades à música popular. As melodias que tocava no saxofone ao acompanhar a flauta de Benedito Lacerda se tornaram referência no choro."
+    ]
+  },
+  {
+    "id": "pele",
+    "nome": "Pelé",
+    "anos": "1940–2022",
+    "titulo": "Rei do Futebol",
+    "duracao": 29,
+    "basico": "Eternizado como o Rei do Futebol, é considerado um dos maiores jogadores de todos os tempos. Único jogador tricampeão da Copa do Mundo, tornou-se um dos maiores símbolos do Brasil no exterior.",
+    "textos": [
+      "Edson Arantes do Nascimento, o Rei do Futebol, é o único jogador tricampeão da Copa do Mundo. Em 1958, aos 17 anos, marcou dois gols na final que deu ao Brasil seu primeiro título mundial.",
+      "Voltou a conquistar a Copa em 1962 e 1970. Com o Santos, venceu duas Libertadores e duas Copas Intercontinentais. Sua técnica, criatividade e capacidade de decidir grandes partidas fizeram dele um dos atletas brasileiros mais reconhecidos no mundo."
+    ]
+  }
+]

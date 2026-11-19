@@ -6,7 +6,7 @@ const params = new URLSearchParams( location.search )
 const dev = [ 'live', 'set', 'rig', 'editar', 'record', 'tour', 'all', 'clean', 'debug' ].some( k => params.has( k ) )
 const $ = id => document.getElementById( id )
 
-const NAMES = { machado: 'Machado de Assis', aleijadinho: 'Aleijadinho', reboucas: 'André Rebouças' }
+const NAMES = { machado: 'Machado de Assis', aleijadinho: 'Aleijadinho', reboucas: 'André Rebouças', milton: 'Milton Santos' }
 
 async function reel() {
 

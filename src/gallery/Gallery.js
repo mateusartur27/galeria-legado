@@ -4,10 +4,12 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { texLoader } from './Ktx.js';
 import { texture, color, vec3, uniform, positionWorld, smoothstep, step, mix, vec4 } from 'three/tsl';
 
+export const PORTRAIT_WALL_DROP = .30;
 export const BAY_LENGTH=12;
 export const PALETTE={ivory:'#ddd0b4',stone:'#d1c5af',terracotta:'#bc9385',indigo:'#27394e',gold:'#dbb77b',wood:'#433948',leaf:'#729682',shadow:'#59658c',haze:'#182239',carpet:'#9f2944'};
 export const galleryPhase=uniform(0);
 export const galleryBrightness=uniform(1);
+export const nicheInside=uniform(0); // 1 com a câmera dentro de um nicho: some o forro (y≈6,9) que cobre o nicho das baias vizinhas
 export const galleryRoofBrightness=uniform(.7);
 export const galleryLightHeight=uniform(5.35);
 function azulejoMap(){return canvasMap(512,768,(c,w,h)=>{
@@ -56,6 +58,7 @@ export async function createMaterials(){
  const ceilingTextures=await Promise.all(['diff','nor_gl'].map(kind=>texLoader.loadAsync('/textures/ceiling/paneled-'+kind+'.webp')));
  for(const tex of ceilingTextures){tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1.5,2);tex.anisotropy=4;}
  ceilingTextures[0].colorSpace=THREE.SRGBColorSpace;
+mats.ceiling.opacityNode=nicheInside.mul(step(4.6,positionWorld.x.abs())).mul(step(positionWorld.y,7.1)).oneMinus();mats.ceiling.alphaTest=.5;
  mats.ceiling.map=ceilingTextures[0];mats.ceiling.colorNode=texture(ceilingTextures[0]).rgb.mul(2);mats.ceiling.normalMap=ceilingTextures[1];mats.ceiling.normalScale=new THREE.Vector2(.65,.65);
  mats.leaf.side=THREE.DoubleSide;
  mats.azulejo=new THREE.MeshStandardNodeMaterial({map:azulejoMap(),roughness:.38,metalness:.02,vertexColors:true,side:THREE.DoubleSide});
@@ -151,14 +154,12 @@ function buildBay(timberLayout){
   // Continuous masonry, deep portal reveals, broad cornices and paneled dado.
   b.add('stone',continuousCornice(side));
   b.box('gold',[side*4.02,6.68,0],[.025,.025,BAY_LENGTH]);
-  b.round('stone',[side*3.65,.35,6],[1.05,.7,1.05],[0,0,0],.07);
-  b.box('gold',[side*3.65,.705,6],[1.06,.025,1.06]);
   for(const z of [-4.65,4.65]){
    b.box('blue',[side*4.79,.67,z],[.14,1.28,2.7]);
    b.box('stone',[side*4.68,.12,z],[.4,.24,2.9]);
    b.box('gold',[side*4.68,1.32,z],[.16,.045,2.75]);
-   b.box('stone',[side*4.77,3.65,z],[.16,3.25,2.45]);
-   b.add('azulejo',new THREE.PlaneGeometry(2.3,3.1),[side*4.67,3.65,z],[0,-side*Math.PI/2,0]);
+   b.box('stone',[side*4.77,3.65-PORTRAIT_WALL_DROP,z],[.16,3.25,2.45]);
+   b.add('azulejo',new THREE.PlaneGeometry(2.3,3.1),[side*4.67,3.65-PORTRAIT_WALL_DROP,z],[0,-side*Math.PI/2,0]);
   }
   b.add(side===1?'blue':'clay',arcBand(3.08,2.6,.55,.43),[side*4.66,.18,0],[0,angle,0]);
   b.add('motif',patternedArc(3.1,3.61,2.6),[side*4.66,.18,0],[0,angle,0]);
@@ -184,9 +185,6 @@ function buildBay(timberLayout){
   }
   // Frieze on the rear entablature, authored geometric motif.
   b.add('motif',new THREE.PlaneGeometry(BAY_LENGTH,.64),[side*7.59,5.65,0],[0,-side*Math.PI/2,0]);
-  // Museum wayfinding, deliberately generic until characters are added.
-  b.box('wood',[side*4.28,1.53,-2.92],[.18,2.38,.87],[0,side*.12,0]);
-  b.add('azulejo',new THREE.PlaneGeometry(.7,1.96),[side*4.17,1.58,-2.92],[0,-side*Math.PI/2+side*.12,0]);
   // Velvet museum cordons frame the empty exhibits without entering the red carpet.
   for(const z of [-2,2]){
    b.add('gold',new THREE.CylinderGeometry(.17,.22,.06,16),[side*3.98,.04,z]);
@@ -231,25 +229,26 @@ function buildBay(timberLayout){
 }
 
 // Separa os triângulos da parede do fundo dos nichos (|x| > BACK_X) em geometrias próprias, que compartilham os mesmos buffers.
-const BACK_X=7.28;
+const BACK_X=7.28,NICHE_X=1e9; /* desligado: cortar a parede do museu por x deixava lajes soltas */ // NICHE_X: tudo ATRÁS da parede do museu (alcova: parede do fundo, forro, piso e luzes do nicho) vira peça própria, que um set com `openWalls` esconde nessa baia e nas vizinhas; a parede do museu (portal, pilastras, cornija) fica
 function splitBack(key,g){
- const pos=g.attributes.position,idx=g.index,n=(idx?idx.count:pos.count)/3,main=[],L=[],R=[],CL=[],CR=[];
- for(let t=0;t<n;t++){const a=idx?idx.getX(t*3):t*3,b=idx?idx.getX(t*3+1):t*3+1,c=idx?idx.getX(t*3+2):t*3+2;const x=(pos.getX(a)+pos.getX(b)+pos.getX(c))/3,y=(pos.getY(a)+pos.getY(b)+pos.getY(c))/3,cord=key==='rope'||(key==='gold'&&Math.abs(x)>3.9&&Math.abs(x)<4.07&&y<1.1);(x<-BACK_X?L:x>BACK_X?R:cord?(x<0?CL:CR):main).push(a,b,c);}
- if(!L.length&&!R.length&&!CL.length&&!CR.length)return [{geo:g,side:0,kind:''}];
+ const pos=g.attributes.position,idx=g.index,n=(idx?idx.count:pos.count)/3,main=[],L=[],R=[],CL=[],CR=[],NL=[],NR=[];
+ for(let t=0;t<n;t++){const a=idx?idx.getX(t*3):t*3,b=idx?idx.getX(t*3+1):t*3+1,c=idx?idx.getX(t*3+2):t*3+2;const x=(pos.getX(a)+pos.getX(b)+pos.getX(c))/3,y=(pos.getY(a)+pos.getY(b)+pos.getY(c))/3,cord=key==='rope'||(key==='gold'&&Math.abs(x)>3.9&&Math.abs(x)<4.07&&y<1.1);(x<-BACK_X?L:x>BACK_X?R:cord?(x<0?CL:CR):x<-NICHE_X?NL:x>NICHE_X?NR:main).push(a,b,c);}
+ if(!L.length&&!R.length&&!CL.length&&!CR.length&&!NL.length&&!NR.length)return [{geo:g,side:0,kind:''}];
  const mk=arr=>{const ng=new THREE.BufferGeometry();for(const k of Object.keys(g.attributes))ng.setAttribute(k,g.attributes[k]);ng.setIndex(arr);return ng;};
- return [{geo:mk(main),side:0,kind:''},...(L.length?[{geo:mk(L),side:-1,kind:'back'}]:[]),...(R.length?[{geo:mk(R),side:1,kind:'back'}]:[]),...(CL.length?[{geo:mk(CL),side:-1,kind:'cord'}]:[]),...(CR.length?[{geo:mk(CR),side:1,kind:'cord'}]:[])];
+ return [{geo:mk(main),side:0,kind:''},...(L.length?[{geo:mk(L),side:-1,kind:'back'}]:[]),...(R.length?[{geo:mk(R),side:1,kind:'back'}]:[]),...(CL.length?[{geo:mk(CL),side:-1,kind:'cord'}]:[]),...(CR.length?[{geo:mk(CR),side:1,kind:'cord'}]:[]),...(NL.length?[{geo:mk(NL),side:-1,kind:'niche'}]:[]),...(NR.length?[{geo:mk(NR),side:1,kind:'niche'}]:[])];
 }
 export class Gallery{
  constructor(scene,materials,{count=13}={}){
   this.scene=scene;this.materials=materials;this.count=count;this.meshes=[];this.props=[];this.matrix=new THREE.Matrix4();this.zero=new THREE.Matrix4().makeScale(0,0,0);this.obj=new THREE.Object3D();this.progress=0;this.behind=Math.floor(count/2);this.base=-this.behind;this.recycles=0;this.slots=Array.from({length:count},(_,i)=>i-1);
   this.timberLayout=[];
   for(const [key,geometry0]of buildBay(this.timberLayout))for(const {geo:geometry,side:backSide,kind}of splitBack(key,geometry0)){
-   const mesh=new THREE.InstancedMesh(geometry,materials[key],count);mesh.name=`gallery-${key}${backSide?(kind==='cord'?'-cord':'-back')+(backSide<0?'L':'R'):''}`;mesh.userData.part=kind;mesh.userData.back=backSide;mesh.castShadow=['wood','roof-placeholder','plaster','clay','blue'].includes(key);mesh.receiveShadow=!['sky','lamp','glow','ao'].includes(key);mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(key==='leaf')materials[key].side=THREE.DoubleSide;this.meshes.push(mesh);scene.add(mesh);
+   const mesh=new THREE.InstancedMesh(geometry,materials[key],count);mesh.name=`gallery-${key}${backSide?(kind==='cord'?'-cord':kind==='niche'?'-niche':'-back')+(backSide<0?'L':'R'):''}`;mesh.userData.part=kind;mesh.userData.back=backSide;mesh.castShadow=['wood','roof-placeholder','plaster','clay','blue'].includes(key);mesh.receiveShadow=!['sky','lamp','glow','ao'].includes(key);mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);if(key==='leaf')materials[key].side=THREE.DoubleSide;this.meshes.push(mesh);scene.add(mesh);
   }
   this.update(0);
  }
  // Parede do fundo de um nicho pode ser aberta (set com openBack): some só nessa baia (a do nicho esquerdo; a do direito fica entre duas baias).
- bayFlag(prop,side,logical){return !!this.sets?.entries?.some(e=>e.character[prop]&&e.side===side&&(side===-1?e.logical===logical:(logical===e.logical||logical===e.logical+1)));}
+ // openWalls: a rua do set continua pelas baias vizinhas do mesmo lado (±1), senão as paredes delas cortariam as casas.
+ bayFlag(prop,side,logical){if(this.sets?.empty)return false;const w=prop==='openWalls'?1:0;return !!this.sets?.entries?.some(e=>e.character[prop]&&(prop!=='openWalls'||e.inside)&&e.side===side&&(side===-1?Math.abs(logical-e.bay)<=w:(logical>=e.bay-w&&logical<=e.bay+1+w)));}
  update(progress){
   // Câmera parada (set aberto): nada muda, então não reenvia à GPU as matrizes de centenas de instâncias a cada quadro (travadinhas + lixo de memória).
   if(progress===this.lastProgress&&!this.dirty)return;this.lastProgress=progress;this.dirty=false;
@@ -257,15 +256,15 @@ export class Gallery{
   // Camera stays near the origin. Reposition a bounded ring; no growing world coordinates.
   const phase=progress%BAY_LENGTH;
   galleryPhase.value=phase;
+  this.sets?.update(progress);
   for(let i=0;i<this.count;i++){
    const logical=base+i;this.slots[i]=logical;const z=-(i-this.behind)*BAY_LENGTH+phase;
    this.matrix.makeTranslation(0,0,z);
-   for(const mesh of this.meshes){const bk=mesh.userData.back;mesh.setMatrixAt(i,bk&&this.bayFlag(mesh.userData.part==='cord'?'ownCordon':'openBack',bk,logical)?this.zero:this.matrix);}
+   for(const mesh of this.meshes){const bk=mesh.userData.back;const pt=mesh.userData.part;mesh.setMatrixAt(i,bk&&(this.bayFlag(pt==='cord'?'ownCordon':pt==='niche'?'openWalls':'openBack',bk,logical)||(pt==='back'&&this.bayFlag('openWalls',bk,logical)))?this.zero:this.matrix);}
 
   }
   for(const m of [...this.meshes,...this.props])m.instanceMatrix.needsUpdate=true;
   this.curated?.update(progress);
-  this.sets?.update(progress);
   this.timber?.update(progress);
   this.hangingPlants?.update(progress);
  }

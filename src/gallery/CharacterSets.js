@@ -5,7 +5,7 @@ import { ktx2Loader } from './Ktx.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, float } from 'three/tsl';
+import { texture, vec3, vertexColor, positionGeometry, smoothstep, dot, mix, float, materialEmissive } from 'three/tsl';
 import { MachadoWriting } from './MachadoWriting.js';
 import { AleijadinhoWorking } from './AleijadinhoWorking.js';
 import { ReboucasDrawing } from './ReboucasDrawing.js';
@@ -15,8 +15,19 @@ import { repairTorsoSkinWeights } from './TorsoSkinWeights.js';
 import { buildStudyRoom } from './PeriodRoom.js';
 import { buildAleijadinhoRoom } from './AleijadinhoRoom.js';
 import { buildReboucasRoom } from './ReboucasRoom.js';
-import { buildAdhemarRoom } from './AdhemarRoom.js';
-import { BAY_LENGTH, applyReceivedLighting, galleryBrightness } from './Gallery.js';
+import { PeleRun } from './PeleRun.js';
+import { buildAdhemarRoom, buildPeleRoom } from './AdhemarRoom.js';
+import { AdhemarRun } from './AdhemarRun.js';
+import { buildGloriaRoom } from './GloriaRoom.js';
+import { addGloriaPoseControls, GloriaGreeting, MIC_URL } from './GloriaGreeting.js';
+import { buildLuizGamaRoom } from './LuizGamaRoom.js';
+import { seatLuizGama } from './LuizGamaReading.js';
+import { buildPixinguinhaRoom } from './PixinguinhaRoom.js';
+import { PixinguinhaPlaying } from './PixinguinhaPlaying.js';
+import { buildMiltonRoom } from './MiltonRoom.js';
+import { buildNiloRoom } from './NiloRoom.js';
+import { NiloWriting } from './NiloWriting.js';
+import { BAY_LENGTH, applyReceivedLighting, galleryBrightness, nicheInside } from './Gallery.js';
 
 // ---------------------------------------------------------------------------------------------
 // Sets de personagens.
@@ -152,9 +163,43 @@ export const SKIN = { aleijadinho: .78 } // 1 = sem mudança
 // -------- Adhemar da Silva: pista azul de salto triplo (corre, salta na areia, levanta, repete) --------
 const ADHEMAR = {
 	id: 'adhemar', name: 'Adhemar da Silva', dates: '1927 · 2001', role: 'Atleta, bicampeão olímpico do salto triplo',
-	model: '/models/rig-studio/adhemar-running.glb', height: 1.78, stand: { x: -1.2, z: 0.35 }, facing: Math.PI / 2, room: buildAdhemarRoom, lightScale: .12, openBack: true, maxX: 44,
+	model: '/models/characters/adhemar-tripo-braco-original.glb', strideRig: 1.589108, height: 1.78, stand: { x: -1.2, z: 0.35 }, facing: Math.PI / 2, cx: 1.5, eye: 2.1, pitch: -.2 /* câmera mais longe e mais alta: a pista inteira cabe no quadro, por cima do cordão */, room: buildAdhemarRoom, lightScale: .12, openBack: true, maxX: 44,
 }
-export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS, ADHEMAR ]
+const PELE = {
+	id: 'pele', name: 'Pelé', dates: '1940 · 2022', role: 'Futebolista, tricampeão mundial',
+	model: '/models/characters/pele-corrida.glb', height: 1.73,
+	cx: ADHEMAR.cx, eye: ADHEMAR.eye, pitch: ADHEMAR.pitch,
+	room: buildPeleRoom, lightScale: ADHEMAR.lightScale, openBack: ADHEMAR.openBack, maxX: ADHEMAR.maxX,
+}
+// -------- Luiz Gama: frente do sobrado do escritório de rábula, Largo de São Francisco, São Paulo, noite de c. 1870 --------
+const LUIZGAMA = {
+	id: 'luizgama', name: 'Luiz Gama', dates: '1830 · 1882', role: 'Rábula, jornalista e abolicionista',
+	model: '/models/rig-studio/luiz-gama.glb', height: 1.75, stand: { x: -0.1, z: 0.6 }, facing: 0.0, room: buildLuizGamaRoom, lightScale: .12, openBack: true, maxX: 44,
+}
+// -------- Pixinguinha: noite de roda de choro na Lapa, sob os Arcos (Rio de Janeiro) --------
+const PIXINGUINHA = {
+	id: 'pixinguinha', name: 'Pixinguinha', dates: '1897 · 1973', role: 'Compositor, flautista e saxofonista · Pai do choro',
+	model: '/models/rig-studio/pixinguinha.glb', height: 1.75, eye: 1.47, pitch: -.12, aim: { x: .38, z: .42, y: .94 }, room: buildPixinguinhaRoom, lightScale: .12, openBack: true, maxX: 44,
+}
+// -------- Glória Maria: repórter de rua ao vivo, calçadão de Copacabana --------
+const GLORIA = {
+	id: 'gloria', name: 'Glória Maria', dates: '1949 · 2023', role: 'Jornalista e repórter · Primeira repórter negra da TV brasileira',
+	model: '/models/set/gloria/gloria-detalhada.glb', height: 1.68, stand: { x: 0, z: .1 }, facing: 0, room: buildGloriaRoom, lightScale: .12, openBack: true, maxX: 44,
+}
+// -------- Milton Santos: Gabinete de Geografia, Universidade de São Paulo (USP), c. 1994 --------
+const MILTON = {
+	id: 'milton', name: 'Milton Santos', dates: '1926 · 2001', role: 'Geógrafo e pensador social · Prêmio Vautrin Lud',
+	model: '/models/characters/milton-looking-behind.glb', height: 1.74, stand: { x: 0.0, z: 0.5 }, facing: 0.0,
+	cx: 2.7, eye: 1.68, pitch: -0.04, aim: { x: 0.0, z: 0.5, y: 1.4 },
+	room: buildMiltonRoom, lightScale: .12, openBack: false, maxX: 44,
+}
+// -------- Nilo Peçanha: gabinete presidencial no Palácio do Catete, Rio de Janeiro, 1909 --------
+const NILO = {
+	id: 'nilo', name: 'Nilo Peçanha', dates: '1867 · 1924', role: 'Presidente da República · ensino profissional',
+	model: '/models/rig-studio/nilo.glb', height: 1.72,
+	cx: 2.8, eye: 1.7, pitch: -0.04, room: buildNiloRoom, openBack: true, maxX: 11.15,
+}
+export const CATALOG = [ MACHADO, ALEIJADINHO, REBOUCAS, ADHEMAR, LUIZGAMA, PIXINGUINHA, GLORIA, MILTON, NILO, PELE ]
 
 // Quem aparece onde.
 //   people = quantas pessoas existem na galeria (1, 2, 3…), startSide = lado da primeira (-1 esquerda, 1 direita).
@@ -171,9 +216,9 @@ export function layout( people = 1, startSide = -1, first = 1, focus = null, onl
 const _bx = new THREE.Box3(), _pv = new THREE.Matrix4(), _fr = new THREE.Frustum(), _sp = new THREE.Sphere()
 
 export class CharacterSets {
-	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18, lodDist = 1e9, minRadius = 0 } = {} ) {
+	constructor( gallery, { people = 1, side = -1, first = 1, focus = null, renderer = null, only = null, pattern = null, loop = false, maxRange = 1e9, nearDist = 18, lodDist = 1e9, minRadius = 0, empty = false, continuous = false } = {} ) {
 		// loop = passeio infinito: as `people` salas formam um anel; quando uma fica para trás, pula `people` baias adiante (já escondida na névoa) e o passeio repete.
-		this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / 2 - 3 ); this.nearDist = nearDist; this.lodDist = lodDist; this.minRadius = minRadius; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
+		this.empty = empty; this.continuous = continuous; this.loop = loop; this.period = people; this.range = Math.min( maxRange, people * BAY_LENGTH / ( continuous ? 4 : 2 ) - 3 ); this.nearDist = nearDist; this.lodDist = lodDist; this.minRadius = minRadius; this.first = first; this.startSide = side // range: além disso a sala fica escondida (a névoa já a apagou); o pulo de uma sala para a baia seguinte acontece sempre fora desse alcance
 		this.renderer = renderer; this.gallery = gallery; this.entries = layout( people, side, first, focus, only, pattern ).map( e => ( { ...e, base: e.logical, group: new THREE.Group(), ready: false } ) )
 		this.lights = []; this.statics = new Map(); this.characterMaterials = new Map(); this.dimensions = {}
 		this.propMat = new THREE.MeshStandardNodeMaterial( { vertexColors: true, roughness: .72, metalness: .05 } )
@@ -182,8 +227,13 @@ export class CharacterSets {
 		for ( const e of this.entries ) { gallery.scene.add( e.group ) }
 	}
 	async load() {
+		if ( this.empty ) {
+			for ( const entry of this.entries ) entry.ready = true
+			return
+		}
 		const loader = new GLTFLoader().setMeshoptDecoder( MeshoptDecoder )
 		if(this.renderer) loader.setKTX2Loader(ktx2Loader.detectSupport(this.renderer))
+		let peleAssets, gloriaMicrophone;
 		const modelCache = new Map() // um download/decodificação por modelo; as repetições são clones (geometria, materiais e texturas compartilhados)
 		for ( const e of this.entries ) {
 			const def = e.character
@@ -200,7 +250,15 @@ export class CharacterSets {
 			try {
 				if ( def.model ) { let src = modelCache.get( def.model ); const first = ! src; if ( first ) { src = await loader.loadAsync( def.model ); modelCache.set( def.model, { ...src, scene: SkeletonUtils.clone( src.scene ) } ) /* molde intacto: o 1º personagem anima/calibra os ossos de src, os clones saem do molde */ }
 					const gltf = first ? src : { ...src, scene: SkeletonUtils.clone( src.scene ) } // clona do molde, sem tocar nele
-					this.placeCharacter( e, gltf ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();await e.animation.toolEditor.load();} }
+					if ( def.id === 'pele' ) peleAssets ??= Promise.all( [
+						loader.loadAsync( '/models/set/pele/soccer-ball.glb' ),
+						loader.loadAsync( '/models/characters/pele-chute.glb' ),
+					] );
+					if ( def.id === 'gloria' ) gloriaMicrophone ??= loader.loadAsync( MIC_URL );
+					const assets = def.id === 'pele' ? await peleAssets
+						: def.id === 'pixinguinha' ? [ await loader.loadAsync( '/models/set/pixinguinha/saxophone.glb' ) ]
+						: def.id === 'gloria' ? await gloriaMicrophone : null;
+					await this.placeCharacter( e, gltf, assets ); if(def.id==='aleijadinho'){const calibration=new SavedRigCalibration(e.animation);e.animation.rigCalibration=calibration;await calibration.load();await e.animation.toolEditor.load();} }
 			} catch ( err ) { throw new Error(`Personagem ${def.id}: ${err.message}`) }
 			e.ready = true; if ( this.loop ) this.buildLod( e )
 		}
@@ -211,9 +269,18 @@ export class CharacterSets {
 		const box = new THREE.Box3(), sph = new THREE.Sphere()
 		e.group.traverse( o => { if ( ! o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || ! o.visible ) return; box.setFromObject( o ); box.getBoundingSphere( sph ); if ( sph.radius < this.minRadius ) { o.visible = false; return } /* detalhes minúsculos: invisíveis no celular */ if ( sph.radius < 1.4 ) { o.userData.lodR = sph.radius; e.small.push( o ) } } )
 	}
-	material( src, id = null, meshName = '' ) {
+	material( src, id = null, meshName = '', mesh = null ) {
 		if ( this.characterMaterials.has( src ) ) return this.characterMaterials.get( src )
 		const vc = !! src.vertexColors, m = new THREE.MeshStandardNodeMaterial( { color: src.color.clone(), map: src.map, normalMap: src.normalMap, normalScale: new THREE.Vector2( .5, .5 ), roughness: Math.max( .55, src.roughness ?? .8 ), metalness: 0, side: src.side, vertexColors: vc } )
+		if ( id === 'gloria' ) {
+			m.roughness = src.roughness;
+			m.roughnessMap = src.roughnessMap;
+			m.metalness = src.metalness;
+			m.metalnessMap = src.metalnessMap;
+			m.emissive.copy( src.emissive );
+			m.emissiveMap = src.emissiveMap;
+			m.emissiveIntensity = src.emissiveIntensity;
+		}
 		const d = SKIN[ id ] // 1 = pele como veio no modelo; menor = mais escura
 		if ( m.map ) {
 			let c = texture( m.map ).rgb // vertexColors = tom de pele (Aleijadinho)
@@ -221,7 +288,27 @@ export class CharacterSets {
 			if ( d != null && d < 1 ) { // pele = pixels avermelhados; na cabeça vale a malha toda, no corpo só as mãos (pontas dos braços do modelo)
 				const skin = vc ? vcMask : smoothstep( .05, .15, c.r.sub( c.b ) ).mul( smoothstep( 0, .05, c.r.sub( c.g ) ) )
 				const region = /cabe/i.test( meshName ) || id === 'aleijadinho' ? float( 1 ) : smoothstep( .76, .84, positionGeometry.x.abs() )
-				const lum = dot( c, vec3( .299, .587, .114 ) ); c = mix( c, vec3( 1, .58, .36 ).mul( lum ).mul( d * 1.6 ), skin.mul( region ) ) // troca a cor da pele por marrom (mesma luminosidade x d), mantendo o detalhe
+					const lum = dot( c, vec3( .299, .587, .114 ) ); c = mix( c, vec3( 1, .58, .36 ).mul( lum ).mul( d * 1.6 ), skin.mul( region ) ) // troca a cor da pele por marrom (mesma luminosidade x d), mantendo o detalhe
+			}
+			if ( id === 'gloria' ) {
+				// Reproduz a máscara do Blender nas coordenadas do GLB (+Y para cima).
+				const p = positionGeometry.mul( vec3( ...mesh.scale.toArray() ) ).add( vec3( ...mesh.position.toArray() ) );
+				const region = /cabe/i.test( meshName )
+					? smoothstep( .865, .915, p.y ).mul( float( 1 ).sub( smoothstep( .10, .145, p.x.abs() ) ) ).mul( smoothstep( -.015, .055, p.z ) )
+					: smoothstep( .82, .90, p.x.abs() ).max( float( 1 ).sub( smoothstep( -.79, -.68, p.y ) ) );
+				const value = c.r.max( c.g ).max( c.b );
+				const saturation = value.sub( c.r.min( c.g ).min( c.b ) ).div( value.max( .0001 ) );
+				const skin = smoothstep( .55, .72, saturation ).mul( smoothstep( .045, .11, value ) );
+				const skinTone = float( 1 ).sub( region.mul( skin ).mul( .40 ) );
+				// Compensa a saturação das luzes quentes do set só nos tons de pele.
+				const skinBalance = mix( vec3( 1 ), vec3( .66, .87, 1 ), skin );
+				c = c.mul( skinBalance ).mul( skinTone );
+				m.emissiveNode = materialEmissive.mul( skinBalance ).mul( skinTone ).mul( float( 1 ).sub( skin.mul( .25 ) ) );
+			}
+			if ( id === 'milton' ) {
+				const skin = smoothstep( .025, .105, c.r.sub( c.g ) ).mul( smoothstep( .04, .13, c.r.sub( c.b ) ) )
+				const region = /cabe/i.test( meshName ) ? float( 1 ) : smoothstep( .70, .745, positionGeometry.x.abs() )
+				c = c.mul( mix( vec3( 1 ), vec3( .24, .27, .30 ), skin.mul( region ) ) )
 			}
 			if ( id === 'reboucas' ) {
 				const original = c;
@@ -237,10 +324,13 @@ export class CharacterSets {
 				}
 			}
 			m.colorNode = c;
-			if ( id !== 'machado' && id !== 'reboucas' ) m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
-		}		applyReceivedLighting( m ); this.characterMaterials.set( src, m ); return m
+			if ( id !== 'machado' && id !== 'reboucas' && id !== 'gloria' ) m.emissiveNode = c.mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
+		} else {
+			m.emissiveNode = vec3( m.color.r, m.color.g, m.color.b ).mul( vec3( .1, .08, .06 ) ).mul( galleryBrightness )
+		}
+		applyReceivedLighting( m ); this.characterMaterials.set( src, m ); return m
 	}
-	placeCharacter( e, gltf ) {
+	async placeCharacter( e, gltf, extraAssets ) {
 		const def = e.character, root = gltf.scene
 		if(def.id==='aleijadinho')repairTorsoSkinWeights(root);
 		if (def.id === 'machado') {
@@ -255,9 +345,57 @@ export class CharacterSets {
 			this.dimensions[ def.id ] = { height: def.height, animated: true }
 			return
 		}
+		if ( def.id === 'pele' ) {
+			root.traverse( node => {
+				if ( !node.isMesh ) return;
+				node.material = this.material( node.material, def.id, node.name );
+				node.castShadow = true;
+				node.receiveShadow = true;
+				node.frustumCulled = false;
+			} );
+			const [ ball, strike ] = extraAssets;
+			e.animation = new PeleRun( e, gltf, e.room, def.height, ball.scene.clone(), strike.animations[ 0 ] );
+			this.dimensions[ def.id ] = { height: def.height, animated: true };
+			return;
+		}
+		if ( def.id === 'adhemar' ) { // atleta: corre, salta na areia, levanta e repete
+			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'adhemar', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
+			e.animation = new AdhemarRun( e, gltf, e.room, def )
+			this.dimensions[ def.id ] = { height: def.height, animated: true }
+			return
+		}
 		if ( def.id === 'reboucas' ) { // engenheiro sentado no banquinho, desenhando na prancheta
 			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'reboucas', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
 			e.animation = e.room.mode === 'teodolito' ? new ReboucasObserving( e, gltf, e.room.theo, e.room.room, def.height, e.room.hands, e.room.hooks ) : new ReboucasDrawing( e, gltf, e.room.seat, def.height )
+			this.dimensions[ def.id ] = { height: def.height, animated: true }
+			return
+		}
+		if ( def.id === 'luizgama' ) {
+			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, def.id, n.name, n ); n.castShadow = true; n.receiveShadow = true } } )
+			e.animation = seatLuizGama( e, root, def.height )
+			this.dimensions[ def.id ] = { height: def.height, animated: true }
+			return
+		}
+		if ( def.id === 'pixinguinha' ) {
+			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, def.id, n.name ); n.castShadow = true; n.receiveShadow = true } } )
+			e.animation = new PixinguinhaPlaying( e, root, extraAssets[ 0 ].scene, def.height )
+			this.dimensions[ def.id ] = { height: def.height, animated: true }
+			return
+		}
+		if ( def.id === 'nilo' ) {
+			const [reference, retouchedAlbedo] = await Promise.all([
+				fetch('/rigs/nilo.json').then(r => { if (!r.ok) throw new Error('Rig do Nilo indisponível'); return r.json() }),
+				new THREE.TextureLoader().loadAsync('/models/set/nilo/corpo-albedo-maos.png'),
+			])
+			const body = root.getObjectByName('Corpo_Nilo')
+			if (body?.material?.map) {
+				body.material = body.material.clone()
+				body.material.map = body.material.map.clone()
+				body.material.map.source = retouchedAlbedo.source
+				body.material.map.needsUpdate = true
+			}
+			root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, 'nilo', n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
+			e.animation = new NiloWriting( e, gltf, e.room.seat, def.height, reference )
 			this.dimensions[ def.id ] = { height: def.height, animated: true }
 			return
 		}
@@ -266,19 +404,49 @@ export class CharacterSets {
 		const scale = def.height / size.y
 		this.dimensions[ def.id ] = { size: size.toArray().map( v => +v.toFixed( 3 ) ), scale: +scale.toFixed( 3 ) }
 		const holder = new THREE.Group(); holder.name = `character-${def.id}`
-		root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, def.id, n.name ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
+		root.traverse( n => { if ( n.isMesh ) { n.material = this.material( n.material, def.id, n.name, n ); n.castShadow = true; n.receiveShadow = true; n.frustumCulled = false } } )
 		root.position.set( - center.x, - box.min.y, - center.z ); holder.add( root ); holder.scale.setScalar( scale )
 		holder.position.set( def.stand.x, .035, def.stand.z ); holder.rotation.y = def.facing
-		e.group.add( holder ); e.character3d = holder
+		const spot = def.id === 'gloria' ? e.room?.spot : null
+		if ( spot ) { holder.position.set( 0, 0, 0 ); spot.add( holder ) }
+		else e.group.add( holder )
+		e.character3d = holder
+		if ( def.id === 'gloria' ) {
+			e.animation = new GloriaGreeting( root, holder, extraAssets.scene );
+			if ( e.room?.desk ) e.room.desk = addGloriaPoseControls( e.room.desk, e.animation );
+			this.dimensions[ def.id ].animated = true;
+		}
+		if ( def.id === 'milton' ) {
+			const clip = THREE.AnimationClip.findByName( gltf.animations, 'Looking Behind' )
+			if ( ! clip ) throw new Error( 'Clipe Looking Behind ausente' )
+			const mixer = new THREE.AnimationMixer( root )
+			mixer.clipAction( clip ).play()
+			mixer.update( 0 )
+			e.animation = {
+				root, holder, clip, mixer,
+				update: dt => mixer.update( dt ),
+				getStats: () => ( { clip: clip.name, duration: clip.duration, time: mixer.time % clip.duration } ),
+			}
+			this.dimensions[ def.id ].animated = true
+		}
+		if ( e.room?.anim ) e.animation = e.room.anim // cenário com vida própria (Pixinguinha: notas, bonde, estrelas)
+	}
+	stopDistance( logical ) {
+		return BAY_LENGTH + ( logical - this.first + ( this.startSide === 1 ? 1 : 0 ) ) * BAY_LENGTH / 2
 	}
 	update( progress ) {
 		const g = this.gallery
 		for ( const e of this.entries ) {
-			if ( this.loop ) { // anel de salas: a mais próxima da câmera (±period/2 baias); lado alterna pela paridade da baia
+			if ( this.continuous ) {
+				const cycleDistance = this.period * BAY_LENGTH / 2
+				e.logical = e.base + this.period * Math.round( ( progress - this.stopDistance( e.base ) ) / cycleDistance )
+				e.side = ( e.logical - this.first ) % 2 === 0 ? this.startSide : -this.startSide
+			} else if ( this.loop ) { // anel de salas: a mais próxima da câmera (±period/2 baias); lado alterna pela paridade da baia
 				e.logical = e.base + this.period * Math.round( ( progress / BAY_LENGTH - e.base ) / this.period )
 				e.side = ( ( ( e.logical - this.first ) % 2 ) + 2 ) % 2 === 0 ? this.startSide : - this.startSide
 			}
-			const z = progress - e.logical * BAY_LENGTH + ( e.side === 1 ? - BAY_LENGTH / 2 : 0 ) // centro do nicho (esq.: no meio da baia; dir.: meia baia à frente)
+			const z = this.continuous ? progress - this.stopDistance( e.logical ) : progress - e.logical * BAY_LENGTH + ( e.side === 1 ? - BAY_LENGTH / 2 : 0 ) // centro do nicho (esq.: no meio da baia; dir.: meia baia à frente)
+			e.bay = this.continuous ? Math.floor( this.stopDistance( e.logical ) / BAY_LENGTH ) : e.logical
 			e.group.position.set( e.side * NICHE_X, NICHE_TOP, z )
 			e.group.rotation.y = e.side === - 1 ? Math.PI / 2 : - Math.PI / 2 // +Z local → corredor
 			e.group.visible = Math.abs( z ) < 62
@@ -288,7 +456,14 @@ export class CharacterSets {
 	// Chamar a cada quadro, depois de posicionar a câmera (só no passeio em anel): sala só desenhada se está ao alcance E no campo de visão;
 	// o personagem só existe/anima nas salas a menos de 18 m; a luz do set vai para a sala visível mais próxima.
 	cull( camera ) {
-		if ( ! this.loop ) return
+		// isolamento: com a câmera DENTRO de um nicho (além da parede do museu, na largura da abertura), os outros sets não são desenhados: nada de um set vaza no outro
+		const inside = this.entries.find( e => e.worldZ !== undefined && Math.abs( e.worldZ - camera.position.z ) < 2.9 && camera.position.x * e.side > NICHE_X - .35 )
+		nicheInside.value = inside ? 1 : 0
+		let chg = false
+		for ( const e of this.entries ) { const v = e === inside; if ( !! e.inside !== v ) chg = true; e.inside = v }
+		if ( chg ) this.gallery.dirty = true // openWalls só vale com a câmera dentro do nicho (Gallery.bayFlag): do corredor as baias vizinhas ficam intactas
+		const isolate = () => { if ( inside ) for ( const o of this.entries ) if ( o !== inside ) o.group.visible = false }
+		if ( ! this.loop ) { isolate(); return }
 		camera.updateMatrixWorld(); _pv.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse ); _fr.setFromProjectionMatrix( _pv )
 		let best = null, bd = 1e9
 		for ( const e of this.entries ) {
@@ -301,6 +476,7 @@ export class CharacterSets {
 			if ( e.animation?.holder ) e.animation.holder.visible = e.near
 			if ( e.group.visible && d < bd ) { bd = d; best = e }
 		}
+		isolate()
 		if ( this.spot ) {
 			if ( best?.spotLocal ) {
 				if ( this.spotBase == null ) this.spotBase = this.spot.intensity
@@ -311,7 +487,7 @@ export class CharacterSets {
 		}
 	}
 	animate(dt) { for (const e of this.entries) if (e.animation && e.group.visible && e.near !== false) e.animation.update(dt); }
-	getStats() { return { sets: this.entries.map( e => ( { id: e.character.id, logical: e.logical, side: e.side, ready: e.ready, animation: e.animation?.getStats() } ) ), dimensions: this.dimensions } }
+	getStats() { return { sets: this.entries.map( e => ( { id: e.character.id, logical: e.logical, side: e.side, ready: e.ready, animation: e.animation?.getStats?.() } ) ), dimensions: this.dimensions } }
 }
 
 

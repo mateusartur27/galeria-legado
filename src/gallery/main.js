@@ -1,3 +1,5 @@
+import { mountPortraitPanel } from './PortraitPanel.js';
+import { CorridorTour } from './CorridorTour.js';
 import * as THREE from 'three/webgpu';
 import { positionLocal, vec3, color, float, smoothstep, mx_noise_float } from 'three/tsl';
 
@@ -77,17 +79,23 @@ async function main(){
  const lockInput=tourMode||(import.meta.env.PROD&&params.has('set')&&!params.has('editar')&&!params.has('live')&&!params.has('rig'));
  if(lockInput){document.body.classList.add('tour');const st0=document.createElement('style');st0.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint,body.tour #desk-panel,body.tour #intro{display:none!important}';document.head.appendChild(st0);}
  if(tourMode){state.paused=false;state.exploring=false;document.body.classList.add('tour');const st=document.createElement('style');st.textContent='body.tour .controls,body.tour #enter,body.tour #lighting-toggle,body.tour #look-back,body.tour #rig-toggle,body.tour .hint{display:none!important}body.tour #intro{transition:opacity 1.6s;}body.tour.tour-clear #intro{opacity:0;pointer-events:none}';document.head.appendChild(st);setTimeout(()=>document.body.classList.add('tour-clear'),7000);}
- const people=Math.max(1,Math.min(12,Number(params.get('people'))||(tourMode?(low?6:9):1)));
+ const emptyHall=tourMode&&params.has('hall');
+ const fullTour=tourMode&&(emptyHall||params.has('all'));
+ const people=Math.max(1,Math.min(12,Number(params.get('people'))||(fullTour?10:tourMode?(low?6:9):1)));
  const startSide=params.get('side')==='right'?1:-1;
  // Publicado (build de produção): abre direto no set do Machado de Assis. ?tour = galeria inteira; ?set=<id> = outro set; ?editar = painel de posições.
- const setParam=params.has('rig')?(['machado','reboucas'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):params.has('set')?params.get('set'):null;
- const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!params.has('all')?['machado','aleijadinho','reboucas']:null,pattern:tourMode&&!params.has('all')?(params.has('machado')?['machado']:['machado','aleijadinho','reboucas']):null,loop:tourMode,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16,minRadius:low?.09:0});gallery.sets=sets;
+ const requestedSet=params.get('set');
+ const setParam=params.has('rig')?(['machado','reboucas','gloria'].includes(params.get('rig'))?params.get('rig'):'aleijadinho'):requestedSet==='pixingiungha'?'pixinguinha':requestedSet;
+ const sets=new CharacterSets(gallery,{people,side:startSide,first:1,renderer,focus:setParam,only:tourMode&&!fullTour?['machado','aleijadinho','reboucas']:null,pattern:tourMode&&!fullTour?(params.has('machado')?['machado']:['machado','aleijadinho','reboucas']):null,loop:tourMode,empty:emptyHall,continuous:fullTour,maxRange:low?20:1e9,nearDist:low?12:18,lodDist:low?9:16,minRadius:low?.09:0});gallery.sets=sets;
+ const corridorTour=fullTour?new CorridorTour(scene,sets,state):null;
+ const capturePortrait=params.has('captura-retrato')&&setParam?new CorridorTour(scene,sets,state):null;
  const setLights=[0,1].map(()=>{const l=new THREE.PointLight('#ffcf94',0,9,2);scene.add(l);return l;});
  const parkedId=setParam;let shadowZ=null;
  const parked=parkedId?sets.entries.find(e=>e.character.id===parkedId)??sets.entries[0]:null;
  state.camX=tourMode?0:-.3;state.eye=2.15;
  if(parked){Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10});sun.shadow.camera.updateProjectionMatrix();}
- if(parked){state.eye=1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||2.8);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=-.04;}
+ if(parked){state.eye=parked.character.eye||1.7;state.paused=true;state.exploring=true;state.distance=parked.logical*BAY_LENGTH+(parked.side===1?BAY_LENGTH/2:0);state.camX=parked.side*(Number(params.get('cx'))||parked.character.cx||2.8);state.yaw=state.targetYaw=-parked.side*Math.PI/2;state.pitch=state.targetPitch=parked.character.pitch??-.04;}
+ if(corridorTour)mountPortraitPanel(corridorTour,emptyHall&&params.has('editar-quadros'));
  gallery.update(state.distance);
  const fast=params.has('fast'); // ?fast: sem pós-processamento (sem passes em tela cheia/HDR); MSAA direto no canvas
  const pipeline=fast?{render:()=>renderer.render(scene,camera),disableMsaa(){}}:new Pipeline(renderer,scene,camera,style,{aa:'fxaa',msaa:4,bloomMips:3}); // msaa 4×: bordas limpas nos personagens (o FXAA sozinho serrilhava e borrava)
@@ -109,8 +117,9 @@ async function main(){
  const moveBy=(dx,dz)=>{const nx=state.camX+dx,nd=Math.max(0,state.distance-dz);if(nicheOpen(nx,state.distance))state.camX=THREE.MathUtils.clamp(nx,-maxX,maxX);if(nicheOpen(state.camX,nd))state.distance=nd;};
  // Roteiro do passeio: cruza o corredor; perto de um nicho desacelera, vira a cabeça para ele, se aproxima, fica ~4 s olhando e segue; o próximo nicho (do outro lado) repete.
  const _av=new THREE.Vector3();const aimPoint=e=>{e.group.updateMatrixWorld(true);const a=e.character.aim;if(a)_av.set(a.x,0,a.z),e.group.localToWorld(_av);else{(e.character3d??e.animation?.holder??e.group).getWorldPosition(_av);}return{x:_av.x,z:_av.z,y:a?.y??1.1};};
- const tour={dwell:0,focus:0,aim:0,phase:0,done:new Set([0])};
+ const tour=corridorTour??{dwell:0,focus:0,aim:0,phase:0,done:new Set([0])};
  const tourStep=dt=>{
+  if(corridorTour){corridorTour.step(dt,aimPoint);return;}
   // alvo = próximo personagem ainda não visitado, à frente (z do mundo negativo). Fase 0: para e olha a PAREDE antes do nicho; fase 1: vira para o personagem.
   let best=null,bz=1e9,tx=0,tz=0,ty=1.1;
   for(const e of sets.entries){if(e.worldZ===undefined||!e.ready||tour.done.has(e.logical))continue;
@@ -139,6 +148,7 @@ async function main(){
    const dx=(-s*walkDir+c*strafe)*v,dz=(-c*walkDir-s*strafe)*v;
    moveBy(dx,dz);}
   {const upd=state.distance!==gallery.lastProgress||gallery.dirty||!culler.ready;if(upd)culler.restore();gallery.update(state.distance);if(upd){culler.register(scene);culler.capture();culler.ready=true;}}
+  corridorTour?.updatePortraits();
   pa=performance.now();sets.animate(dt);PR.animate=(PR.animate??0)*.9+(performance.now()-pa)*.1;
   // Parado num set: a sombra do sol cobre só a sala (±10 m em vez de 34×44 m) → 4× mais nitidez com o mesmo mapa, e segue a sala se o visitante andar.
   if(parked&&parked.worldZ!==undefined){const tz=Math.round(parked.worldZ*2)/2;if(tz!==shadowZ){shadowZ=tz;const tx=parked.side*NICHE_X;sun.target.position.set(tx,1.2,tz);sun.position.set(tx-15,19.2,tz-14);}}
@@ -147,7 +157,12 @@ async function main(){
   const lampPhase=state.distance%BAY_LENGTH;
   chandelierLights.forEach((light,i)=>{const z=lampPhase-i*BAY_LENGTH;light.position.set(0,lightControls.settings.lightHeight,z);light.intensity=68*lightControls.settings.brightness*(1-THREE.MathUtils.smoothstep(Math.abs(z),8,12));});
   if(parked&&lockInput){state.targetYaw=-parked.side*Math.PI/2+Math.sin(t*.22)*.05;state.targetPitch=-.04+Math.sin(t*.17)*.012;state.camX=parked.side*2.8+Math.sin(t*.13)*.3;} // cena parada: só uma deriva suave de câmera
-  const blend=1-Math.exp(-dt*5);state.yaw+=(state.targetYaw-state.yaw)*blend;state.pitch+=(state.targetPitch-state.pitch)*blend;
+  const blend=1-Math.exp(-dt*5);
+  const yawStep=(state.targetYaw-state.yaw)*blend;
+  const pastForward=state.yaw*Math.sign(state.targetYaw);
+  const turnSpeed=THREE.MathUtils.lerp(1.05,1.48,THREE.MathUtils.smoothstep(pastForward,0,.33));
+  state.yaw+=corridorTour?THREE.MathUtils.clamp(yawStep,-turnSpeed*dt,turnSpeed*dt):yawStep;
+  state.pitch+=(state.targetPitch-state.pitch)*blend;
   // Pause the sway clock itself, preserving position on both pause and resume.
   if(!state.paused&&!reduced)walkTime+=dt;
   camera.position.x=state.camX+(!reduced&&!parked?Math.sin(walkTime*.23)*.07*(tourMode?0:1):0);camera.position.y=state.eye+(!reduced?Math.sin(walkTime*.4)*.015:0);
@@ -158,7 +173,7 @@ async function main(){
   if(t-lastUi>.4){$('distance').textContent=`${Math.floor(state.distance).toString().padStart(3,'0')} m`;lastUi=t;}
  };
  // ?record: gravação offline do passeio — cada chamada a __rec.step avança 1 quadro com passo fixo (determinístico) e devolve o que está em cena
- let recT=0;const recording=params.has('record');if(recording){window.__rec={step:dt=>{recT+=dt;frame(dt,recT);const best=sets.entries.filter(e=>e.worldZ!==undefined&&e.ready).sort((a,b)=>Math.abs(a.worldZ)-Math.abs(b.worldZ))[0];return{phase:tour.phase,dwell:tour.dwell,cur:tour.cur,char:tour.curChar,t:recT};}};}else engine.setLoop(frame);
+ let recT=0;const recording=params.has('record');if(recording){window.__rec={step:dt=>{recT+=dt;frame(dt,recT);const best=sets.entries.filter(e=>e.worldZ!==undefined&&e.ready).sort((a,b)=>Math.abs(a.worldZ)-Math.abs(b.worldZ))[0];return{phase:tour.phase,dwell:tour.dwell,cur:tour.cur,char:tour.curChar,distance:state.distance,t:recT};}};}else engine.setLoop(frame);
  if(parked&&lockInput){const back=document.createElement('a');back.href='/';back.textContent='← Voltar';back.style.cssText='position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:30;padding:.8em 1.3em;border-radius:999px;border:1px solid #ffffff55;background:#0d1530aa;color:#fff;font:600 13px/1 system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;backdrop-filter:blur(6px)';document.body.appendChild(back);}
  const togglePause=()=>{state.paused=!state.paused;$('pause-icon').textContent=state.paused?'▷':'Ⅱ';$('pause').setAttribute('aria-label',state.paused?'Continuar percurso':'Pausar percurso');notice(state.paused?'Percurso pausado':'Seguindo em frente');};
  const enter=()=>{if(lockInput)return;state.exploring=true;document.body.classList.add('exploring');};
@@ -185,18 +200,18 @@ async function main(){
  const buildDeskPanel=()=>{
   const desk=parked?.room?.desk;if(!desk)return;
   const panel=document.createElement('div');panel.id='desk-panel';
-  panel.innerHTML='<style>#desk-panel{position:fixed;left:12px;bottom:12px;z-index:30;width:244px;padding:10px 12px;border-radius:12px;background:rgba(22,17,12,.86);color:#f2e6cf;font:12px/1.35 system-ui,sans-serif;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,.35)}#desk-panel h4{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between}#desk-panel select{width:100%;margin:2px 0 4px;padding:5px;border-radius:7px;border:1px solid #5a4a36;background:#2c2218;color:#f2e6cf;font:12px system-ui}#desk-panel label{display:flex;justify-content:space-between;margin:7px 0 2px}#desk-panel input[type=range]{width:100%;accent-color:#d9b46c}#desk-panel .row{display:flex;gap:6px;margin-top:10px}#desk-panel button{flex:1;padding:6px 4px;border:0;border-radius:8px;background:#d9b46c;color:#241a0e;font:600 11px system-ui;cursor:pointer}#desk-panel button.alt{background:#3a2f22;color:#f2e6cf}#desk-panel.closed .body{display:none}</style><h4><span>Mesa · objetos</span><span class="chev">▾</span></h4><div class="body"><select></select></div>';
-  const body=panel.querySelector('.body'),sel=body.querySelector('select');
+  panel.innerHTML='<style>#desk-panel{position:fixed;left:12px;bottom:12px;z-index:30;width:244px;padding:10px 12px;border-radius:12px;background:rgba(22,17,12,.86);color:#f2e6cf;font:12px/1.35 system-ui,sans-serif;max-width:calc(100vw - 48px);max-height:calc(100dvh - 24px);overflow:auto;backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,.35)}#desk-panel h4{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:flex;justify-content:space-between}#desk-panel select{width:100%;margin:2px 0 4px;padding:5px;border-radius:7px;border:1px solid #5a4a36;background:#2c2218;color:#f2e6cf;font:12px system-ui}#desk-panel label{display:flex;justify-content:space-between;margin:7px 0 2px}#desk-panel input[type=range]{width:100%;accent-color:#d9b46c}#desk-panel .row{display:flex;gap:6px;margin-top:10px}#desk-panel button{flex:1;padding:6px 4px;border:0;border-radius:8px;background:#d9b46c;color:#241a0e;font:600 11px system-ui;cursor:pointer}#desk-panel button.alt{background:#3a2f22;color:#f2e6cf}#desk-panel.closed .body{display:none}</style><h4><span>Mesa · objetos</span><span class="chev">▾</span></h4><div class="body"><select></select></div>';
+  const body=panel.querySelector('.body'),sel=body.querySelector('select');sel.setAttribute('aria-label',desk.meta?.title||'Objetos da mesa');
   for(const k of desk.keys()){const o=document.createElement('option');o.value=k;o.textContent=desk.label(k);sel.appendChild(o);}
   const spec=desk.meta?.spec||[['x','Ao longo da mesa',-.65,.65,.005,'m'],['z','Frente ↔ fundo',.5,1.08,.005,'m'],['rot','Giro',-180,180,1,'°']];panel.querySelector('h4 span').textContent=desk.meta?.title||'Mesa · objetos';const inputs={};
-  for(const [p,label,min,max,step,unit] of spec){const row=document.createElement('div');row.innerHTML=`<label><span>${label}</span><b></b></label><input type="range" min="${min}" max="${max}" step="${step}">`;const inp=row.querySelector('input'),out=row.querySelector('b');inp.oninput=()=>{desk.set(sel.value,p,inp.value);out.textContent=(+inp.value).toFixed(+inp.step>=1?0:3)+' '+inputs[p].unit;};inp.onchange=()=>inp.blur();inputs[p]={inp,out,unit,orig:{label,min,max,step,unit},row};body.appendChild(row);}
+  for(const [p,label,min,max,step,unit] of spec){const row=document.createElement('div');row.innerHTML=`<label><span>${label}</span><b></b></label><input type="range" min="${min}" max="${max}" step="${step}">`;const inp=row.querySelector('input'),out=row.querySelector('b');inp.id='desk-field-'+p;row.querySelector('label').htmlFor=inp.id;inp.oninput=()=>{desk.set(sel.value,p,inp.value);out.textContent=(+inp.value).toFixed(+inp.step>=1?0:3)+' '+inputs[p].unit;};inp.onchange=()=>inp.blur();inputs[p]={inp,out,unit,orig:{label,min,max,step,unit},row};body.appendChild(row);}
   const sync=()=>{const v=desk.get(sel.value),ov=desk.meta?.override?.(sel.value);for(const p in inputs){const r=inputs[p],o=ov?(ov[p]||null):r.orig;r.row.style.display=o?'':'none';if(!o)continue;r.row.querySelector('label span').textContent=o.label;r.inp.min=o.min;r.inp.max=o.max;r.inp.step=o.step;r.unit=o.unit;r.inp.value=v[p];r.out.textContent=(+v[p]).toFixed(+o.step>=1?0:3)+' '+o.unit;}};
   sel.onchange=()=>{desk.select(sel.value);sync();sel.blur();};
   const btns=document.createElement('div');btns.className='row';btns.innerHTML='<button data-a="save">Salvar</button><button data-a="reset" class="alt">Restaurar</button><button data-a="resetall" class="alt">Tudo</button><button data-a="copy" class="alt">Copiar</button>';body.appendChild(btns);
-  btns.onclick=async e=>{const a=e.target.dataset?.a;if(!a)return;if(a==='save')notice(desk.save()?'Posições da mesa salvas neste navegador':'Não foi possível salvar aqui');if(a==='reset'){desk.reset(sel.value);sync();notice('Objeto restaurado (use Salvar para guardar)');}if(a==='resetall'&&confirm('Restaurar TODOS os objetos ao padrão e apagar o que você salvou?')){desk.reset();sync();notice('Tudo restaurado ao padrão');}if(a==='copy'){const txt=JSON.stringify(desk.all());try{await navigator.clipboard.writeText(txt);notice('Posições copiadas',4000);}catch{notice(txt,9000);}}e.target.blur();};
+  btns.onclick=async e=>{const a=e.target.dataset?.a;if(!a)return;if(a==='save'){const saved=desk.save();notice(saved?(desk.meta?.savedMessage||'Posições da mesa salvas neste navegador'):'Não foi possível salvar aqui');if(saved&&desk.meta?.closeOnSave)setOpen(false);}if(a==='reset'){desk.reset(sel.value);sync();notice('Objeto restaurado (use Salvar para guardar)');}if(a==='resetall'&&confirm('Restaurar TODOS os objetos ao padrão e apagar o que você salvou?')){desk.reset();sync();notice('Tudo restaurado ao padrão');}if(a==='copy'){const txt=JSON.stringify(desk.all());try{await navigator.clipboard.writeText(txt);notice('Posições copiadas',4000);}catch{notice(txt,9000);}}e.target.blur();};
   const setOpen=open=>{panel.classList.toggle('closed',!open);panel.querySelector('.chev').textContent=open?'▾':'▸';desk.marker(open);};
   panel.querySelector('h4').onclick=()=>setOpen(panel.classList.contains('closed'));
-  desk.select(sel.value);sync();setOpen(true);document.body.appendChild(panel);
+  desk.select(sel.value);sync();setOpen(!desk.meta?.startClosed||params.has('editar'));document.body.appendChild(panel);
  };if(parked)setTimeout(()=>notice(mobile?'Arraste para olhar · pinça com dois dedos para avançar':'W A S D andar · arraste para olhar · roda do mouse avança · Shift corre',7000),600);const hideLoading=()=>$('loading').classList.add('done');if(!parked&&!tourMode)setTimeout(hideLoading,160);
  // Pré-aquecimento (atrás da tela de carregamento): compila todos os shaders e desenha cada sala uma vez para enviar texturas/geometrias à GPU; assim o passeio não engasga ao revelar uma sala nova.
  const warmUp=async()=>{(window.__marks??=[]).push(['carregado',Math.round(performance.now())]);progress(90,'Preparando o passeio…');const nf=()=>new Promise(r=>requestAnimationFrame(r));state.warming=true;
@@ -211,7 +226,7 @@ async function main(){
  // Parado num set: a tela de carregamento só some quando a sala e o personagem estão prontos e com shaders compilados; a decoração do corredor (fora de vista) chega depois, sem travar. No celular as heras penduradas nem carregam (500 mil triângulos).
  // No celular parado num set, a decoração do corredor (lustres, vasos, estátuas, vigas: ~300 mil triângulos) nem é carregada.
  const decor=()=>Promise.all([curated.load(),timber.load(),low?Promise.resolve():hangingPlants.load().then(()=>{state.plantLoaded=true;})]).then(()=>{stripShadows();gallery.dirty=true;});
- try{if(parked){await sets.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else{await Promise.all([decor(),sets.load()]);if(tourMode)await warmUp();}}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}aleijadinho.animation.toolEditor.mount(window.__game);}const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
+ try{if(parked){await Promise.all([sets.load(),capturePortrait?.loadPortraits()]);if(recording&&parked.character.id==='aleijadinho')await parked.animation?.strike?.load();progress(94,'Acendendo as luzes…');await Promise.race([renderer.compileAsync(scene,camera),new Promise(r=>setTimeout(r,9000))]);progress(100,'Bem-vindo ao Legado');hideLoading();await decor();}else{await Promise.all([decor(),sets.load(),corridorTour?.loadPortraits()]);if(tourMode&&!emptyHall)await warmUp();}}catch(error){state.assetError=error.message;console.error('Falha ao carregar decoração:',error);}finally{hideLoading();state.assetsReady=true;if(recording){for(const entry of sets.entries)entry.room?.desk?.marker?.(false);}else if(parked&&(!import.meta.env.PROD||params.has('editar')))buildDeskPanel();const aleijadinho=sets.entries.find(e=>e.character.id==='aleijadinho'&&e.animation);if(aleijadinho&&!recording){const strike=aleijadinho.animation.strike;if(strike){await strike.load();strike.mount(window.__game);}aleijadinho.animation.toolEditor.mount(window.__game);}if(!emptyHall&&!recording){const studio=new RigStudio(window.__game);window.__game.rigEditor=studio;await studio.init();}engine.frameTimes.length=0;engine.windowStart=performance.now();engine.adaptive=!params.has('dpr');}
 
 }
 main().catch(error=>{console.error(error);progress(100,'Não foi possível iniciar a galeria. Recarregue a página.');$('load-label').style.maxWidth='300px';$('load-label').style.textAlign='center';});
