@@ -79,8 +79,12 @@ Base de movimento: Adobe Mixamo, Writing (arquivo local Writing.fbx, ação mixa
 - Modelos: wooden_stool_01, Lantern_01, wooden_crate_01, wooden_crate_02, wooden_barrels_01, treasure_chest, vintage_suitcase, seadogs_compass, vintage_binocular (simplificados e comprimidos com Meshopt).
 - Texturas: monastery_stone_floor, dark_wood, old_planks_02, rust_coarse_01, entre outras do conjunto de ambientação.
 
-**Fornecidos pelo autor do projeto** (criados ou gerados por ele; todos os direitos reservados ao autor, sem licença aberta): modelos dos personagens (Machado de Assis, Aleijadinho), profeta Isaías, imagens de céu/panorama, molduras e quadros. Não reutilize esses arquivos sem autorização.
+**Fornecidos pelo autor do projeto** (com origem e condições de uso próprias): modelos dos personagens (Machado de Assis, Aleijadinho), profeta Isaías, imagens de céu/panorama, molduras e quadros. Não reutilize esses arquivos sem autorização.
 
 **Animação do Aleijadinho:** clipe do Mixamo (Adobe), usado conforme os termos do Mixamo.
 
 **Código próprio:** salas, materiais em TSL, rig e animações procedurais, painel de ajuste — licença MIT (ver LICENSE).
+
+## Créditos atualizados
+
+Os modelos-base dos personagens foram gerados com Tripo AI no plano gratuito e adaptados para a galeria. Consulte a [revisão das fontes](docs/fontes-e-atribuicao.md) e a [página de créditos](site/creditos.html).
