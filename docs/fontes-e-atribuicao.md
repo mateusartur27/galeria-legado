@@ -10,11 +10,11 @@
 | Movimentos | [Adobe Mixamo](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html), identificado em scripts e créditos anteriores | A Adobe documenta o uso dos movimentos em filmes e jogos. Os arquivos de origem de animação e os rigs preparados com eles não foram publicados nesta rodada. |
 | Retratos | Fichas de cada imagem no Wikimedia Commons | Os dez retratos têm fonte na página de créditos. As licenças dos retratos de Glória Maria e Milton Santos exigem atribuição. |
 
-## Arquivos sem fonte identificada
+## Fontes e licenças pendentes
 
 - `public/textures/milton_map.jpg` — imagem do mapa do cenário do Milton.
 - `public/models/set/nilo/mapa-brasil-1909.png` — o script registra uma imagem de clipboard, sem a fonte original.
-- `public/textures/set/carinhoso-partitura.png` — [edição provável no MuseScore](https://musescore.com/user/96860/scores/9231383), indicada pelo autor do projeto. O título e os nomes de Pixinguinha e João de Barro coincidem com a imagem local. A edição exata e a licença de reutilização ainda não foram confirmadas.
+- `public/textures/set/carinhoso-partitura.png` — [MuseScore, partitura de Carinhoso, de Pixinguinha e João de Barro](https://musescore.com/user/96860/scores/9231383). Licença de reutilização da edição não confirmada.
 - `public/textures/set/pele/leafy-grass.jpg` — textura usada também no cenário do Adhemar.
 - `public/models/set/isaias.glb` — gerado por IA segundo as notas locais. A ferramenta ou a licença da geração não foram registradas.
 
