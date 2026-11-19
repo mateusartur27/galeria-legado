@@ -31,6 +31,10 @@ Abra [a galeria 3D local](http://localhost:5186/). A cena usa Three.js com WebGP
 - [editaveis/](editaveis/) contém dez montagens leves em Blender, uma por personagem.
 - `site/` contém as páginas e o player das duas experiências em vídeo. As playlists e os segmentos HLS são servidos no Cloudflare Pages. Para publicar uma cópia independente, inclua os diretórios `video-alinhado/` nas rotas correspondentes.
 
+## Downloads da entrega
+
+A [Release da galeria](https://github.com/mateusartur27/galeria-legado/releases/tag/galeria-fans-v1) reúne os dois MP4 finais, as composições HyperFrames com suas mídias e a pasta de publicação do Cloudflare Pages com os streams HLS.
+
 ## Realização e créditos
 
 **Turma de Engenharia de Software da Faculdade de Nova Serrana (FANS).**
