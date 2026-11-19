@@ -28,6 +28,7 @@ Abra [a galeria 3D local](http://localhost:5186/). A cena usa Three.js com WebGP
 
 - `src/gallery/` contém as salas, a câmera e os controles da galeria.
 - `public/` contém os arquivos usados pela cena 3D.
+- [editaveis/](editaveis/) contém dez montagens leves em Blender, uma por personagem.
 - `site/` contém as páginas e o player das duas experiências em vídeo. As playlists e os segmentos HLS são servidos no Cloudflare Pages. Para publicar uma cópia independente, inclua os diretórios `video-alinhado/` nas rotas correspondentes.
 
 ## Realização e créditos
